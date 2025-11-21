@@ -36,6 +36,7 @@ export interface StmtVisitor<R> {
   visitContinueStmt(stmt: ContinueStmt): R;
   visitValueStmt(stmt: ValueStmt): R;
   visitUseStmt(stmt: UseStmt): R;
+  visitTraitStmt(stmt: TraitStmt): R;
 }
 
 export interface TypeVisitor<R> {
@@ -548,6 +549,21 @@ export class UseStmt extends Stmt {
 
     accept<R>(visitor: StmtVisitor<R>): R {
         return visitor.visitUseStmt(this);
+    }
+}
+
+export class TraitStmt extends Stmt {
+    name: Token;
+    methods: FunctionStmt[]; // Trait methods (usually no body or default body)
+
+    constructor(name: Token, methods: FunctionStmt[]) {
+        super();
+        this.name = name;
+        this.methods = methods;
+    }
+
+    accept<R>(visitor: StmtVisitor<R>): R {
+        return visitor.visitTraitStmt(this);
     }
 }
 
