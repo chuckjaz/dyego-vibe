@@ -1,0 +1,5 @@
+value Point(val x: f32, val y: f32) {
+    fun distance() {
+        (x*x + y*y).sqrt()
+    }
+}
