@@ -152,4 +152,17 @@ describe('Type Checker', () => {
         expect(errors.length).toBeGreaterThan(0);
         expect(errors[0].message).toContain("Expected type Boolean, but got i32");
     });
+
+    test('Issue #10: Float literal 1.0 is interpreted as f64, not i32', () => {
+        const source = `
+            value Point(val x: f64, val y: f64) {
+                fun distance() {
+                    x*x + y*y
+                }
+            }
+            val p = Point(1.0, 2.0);
+        `;
+        const errors = check(source);
+        expect(errors.length).toBe(0);
+    });
 });

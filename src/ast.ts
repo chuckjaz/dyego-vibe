@@ -144,10 +144,12 @@ export class GroupingExpr extends Expr {
 
 export class LiteralExpr extends Expr {
   value: any;
+  tokenType?: any;
 
-  constructor(value: any) {
+  constructor(value: any, tokenType?: any) {
     super();
     this.value = value;
+    this.tokenType = tokenType;
   }
 
   accept<R>(visitor: ExprVisitor<R>): R {
