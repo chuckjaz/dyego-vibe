@@ -108,4 +108,14 @@ describe('Parser', () => {
       // Expect ArrayLiteralExpr
   });
 
+  test('reports errors for invalid syntax', () => {
+      const lexer = new Lexer('val p = Point(1.0f, 2.0f);');
+      const tokens = lexer.scanTokens();
+      const parser = new Parser(tokens);
+      parser.parse();
+      const errors = parser.getErrors();
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors[0].message).toContain("Expect ')' after arguments.");
+  });
+
 });
