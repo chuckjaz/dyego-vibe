@@ -569,6 +569,7 @@ export class Parser {
   }
 
   private whenExpression(): Expr {
+      const keyword = this.previous();
       this.consume(TokenType.LEFT_PAREN, "Expect '(' after 'when'.");
       let subject: Expr | null = null;
       if (!this.check(TokenType.RIGHT_PAREN)) {
@@ -599,7 +600,7 @@ export class Parser {
       }
       this.consume(TokenType.RIGHT_BRACE, "Expect '}' after when body.");
 
-      return new WhenExpr(subject, entries, elseBranch);
+      return new WhenExpr(keyword, subject, entries, elseBranch);
   }
 
   private parseControlFlowBody(): Expr {

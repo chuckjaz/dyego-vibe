@@ -165,4 +165,62 @@ describe('Type Checker', () => {
         const errors = check(source);
         expect(errors.length).toBe(0);
     });
+
+    test('Issue #13: When expression returning value', () => {
+        const source = `
+            var x: i32 = when (true) {
+                true -> 1
+                else -> 2
+            };
+        `;
+        const errors = check(source);
+        expect(errors.length).toBe(0);
+    });
+
+    test('When expression branches compatibility mismatch', () => {
+         const source = `
+            var x = when (true) {
+                true -> 1
+                else -> "string"
+            };
+        `;
+        const errors = check(source);
+        expect(errors.length).toBeGreaterThan(0);
+        expect(errors[0].message).toContain("When branches must return compatible types");
+    });
+
+    test('When expression with subject', () => {
+        const source = `
+           var x: i32 = when (10) {
+               1 -> 11
+               2 -> 12
+               else -> 13
+           };
+       `;
+       const errors = check(source);
+       expect(errors.length).toBe(0);
+   });
+
+   test('When expression with subject mismatch', () => {
+        const source = `
+           var x: i32 = when (10) {
+               true -> 11
+               else -> 12
+           };
+       `;
+       const errors = check(source);
+       expect(errors.length).toBeGreaterThan(0);
+       expect(errors[0].message).toContain("Expected type i32, but got Boolean");
+   });
+
+   test('When expression returning value must have else branch', () => {
+       const source = `
+           var x: i32 = when (true) {
+               true -> 1
+           };
+       `;
+       const errors = check(source);
+       expect(errors.length).toBeGreaterThan(0);
+       expect(errors[0].message).toContain("'when' expression must be exhaustive");
+   });
 });
