@@ -99,7 +99,9 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
     }
 
     private evaluate(expr: Expr): TypeNode {
-        return expr.accept(this);
+        const type = expr.accept(this);
+        expr.type = type;
+        return type;
     }
 
     private isTypeCompatible(target: TypeNode, source: TypeNode): boolean {

@@ -50,6 +50,7 @@ export interface TypeVisitor<R> {
 // --- Base Classes ---
 
 export abstract class Expr {
+  type?: TypeNode;
   abstract accept<R>(visitor: ExprVisitor<R>): R;
 }
 
