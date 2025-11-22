@@ -521,7 +521,8 @@ export class Parser {
     if (this.match(TokenType.THIS)) return new ThisExpr(this.previous());
 
     if (this.match(TokenType.INTEGER, TokenType.FLOAT, TokenType.STRING)) {
-      return new LiteralExpr(this.previous().literal);
+      const token = this.previous();
+      return new LiteralExpr(token.literal, token.type);
     }
 
     if (this.match(TokenType.IDENTIFIER)) {

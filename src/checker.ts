@@ -249,10 +249,13 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
 
     visitLiteralExpr(expr: LiteralExpr): TypeNode {
         if (typeof expr.value === 'number') {
+            if (expr.tokenType === TokenType.FLOAT) {
+                 return new NamedType(new Token(TokenType.IDENTIFIER, "f64", null, 0, 0)); // Default float literal to f64 as per Issue #10
+            }
             if (Number.isInteger(expr.value)) {
                 return new NamedType(new Token(TokenType.IDENTIFIER, "i32", null, 0, 0)); // Default integer type
             } else {
-                return new NamedType(new Token(TokenType.IDENTIFIER, "f32", null, 0, 0)); // Default float type
+                return new NamedType(new Token(TokenType.IDENTIFIER, "f64", null, 0, 0)); // Default float type
             }
         } else if (typeof expr.value === 'string') {
             return new NamedType(new Token(TokenType.IDENTIFIER, "String", null, 0, 0));
