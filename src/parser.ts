@@ -658,7 +658,7 @@ export class Parser {
   }
 
   private arrayLiteral(): ArrayLiteralExpr {
-      this.consume(TokenType.LEFT_BRACKET, "Expect '['.");
+      // The '[' was already consumed by primary()
       const elements: Expr[] = [];
       if (!this.check(TokenType.RIGHT_BRACKET)) {
           do {

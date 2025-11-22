@@ -8,6 +8,22 @@ function check(source: string) {
     const tokens = lexer.scanTokens();
     const parser = new Parser(tokens);
     const statements = parser.parse();
+
+    const parserErrors = parser.getErrors();
+    if (parserErrors.length > 0) {
+        // If parser failed, we should probably report these as errors too
+        // But for Checker tests, we usually expect valid syntax.
+        // If syntax is invalid, Checker might not run fully.
+        // We wrap Parser Error into CheckerError-like object or just throw/fail test?
+        // Let's return them as CheckerErrors for simplicity in testing.
+        // Warning: Parser Error is generic Error, not CheckerError.
+        // We map them.
+        return parserErrors.map(e => {
+            // Dummy token for error
+             return new CheckerError({ lexeme: "", line: 0, column: 0 } as any, e.message);
+        });
+    }
+
     const checker = new Checker();
     checker.check(statements);
     return checker.getErrors();
@@ -222,5 +238,60 @@ describe('Type Checker', () => {
        const errors = check(source);
        expect(errors.length).toBeGreaterThan(0);
        expect(errors[0].message).toContain("'when' expression must be exhaustive");
+   });
+
+   // --- Array Tests ---
+
+   test('Array literal inference', () => {
+       const source = `
+           var x = [1, 2, 3];
+       `;
+       // Should infer i32[]
+       const errors = check(source);
+       expect(errors.length).toBe(0);
+   });
+
+   test('Array literal type mismatch', () => {
+       const source = `
+           var x = [1, "2"];
+       `;
+       const errors = check(source);
+       expect(errors.length).toBe(1);
+       expect(errors[0].message).toContain("Array elements must be of the same type");
+   });
+
+   test('Array literal assignment', () => {
+       const source = `
+           var x: i32[] = [1, 2, 3];
+       `;
+       const errors = check(source);
+       expect(errors.length).toBe(0);
+   });
+
+   test('Array literal assignment mismatch', () => {
+       const source = `
+           var x: String[] = [1, 2, 3];
+       `;
+       const errors = check(source);
+       expect(errors.length).toBe(1);
+       expect(errors[0].message).toContain("Expected type String[], but got i32[]");
+   });
+
+    test('Nested Array literal inference', () => {
+       const source = `
+           var x = [[1, 2], [3, 4]];
+       `;
+       // Should infer i32[][]
+       const errors = check(source);
+       expect(errors.length).toBe(0);
+   });
+
+   test('Nested Array literal type mismatch', () => {
+       const source = `
+           var x = [[1, 2], ["3", "4"]];
+       `;
+       const errors = check(source);
+       expect(errors.length).toBe(1);
+       expect(errors[0].message).toContain("Array elements must be of the same type");
    });
 });

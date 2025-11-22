@@ -105,14 +105,24 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
     }
 
     private isTypeCompatible(target: TypeNode, source: TypeNode): boolean {
+        // Handle Dynamic type (acts as Any)
+        if (target instanceof NamedType && target.name.lexeme === "Dynamic") return true;
+        if (source instanceof NamedType && source.name.lexeme === "Dynamic") return true;
+
         if (target instanceof NamedType && source instanceof NamedType) {
             return target.name.lexeme === source.name.lexeme;
         }
+
+        if (target instanceof ArrayType && source instanceof ArrayType) {
+            return this.isTypeCompatible(target.elementType, source.elementType);
+        }
+
         // Basic compatibility check
         // TODO: Implement more complex compatibility (Union types, Inheritance, etc.)
         // Strip tokens/location for structural check
         const targetStr = this.typeToString(target);
         const sourceStr = this.typeToString(source);
+
         if (targetStr !== "Type" && sourceStr !== "Type") {
              return targetStr === sourceStr;
         }
@@ -502,7 +512,24 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         return firstType;
     }
     visitLambdaExpr(expr: LambdaExpr): TypeNode { return this.getUnitType(); }
-    visitArrayLiteralExpr(expr: ArrayLiteralExpr): TypeNode { return this.getUnitType(); }
+
+    visitArrayLiteralExpr(expr: ArrayLiteralExpr): TypeNode {
+        if (expr.elements.length === 0) {
+             return new ArrayType(new NamedType(new Token(TokenType.IDENTIFIER, "Dynamic", null, 0, 0)));
+        }
+
+        const firstType = this.evaluate(expr.elements[0]);
+
+        for (let i = 1; i < expr.elements.length; i++) {
+            const elementType = this.evaluate(expr.elements[i]);
+            if (!this.isTypeCompatible(firstType, elementType)) {
+                 throw new CheckerError(new Token(TokenType.LEFT_BRACKET, "[", null, 0, 0), `Array elements must be of the same type. Expected ${this.typeToString(firstType)}, but got ${this.typeToString(elementType)}.`);
+            }
+        }
+
+        return new ArrayType(firstType);
+    }
+
     visitIndexGetExpr(expr: IndexGetExpr): TypeNode { return this.getUnitType(); }
     visitIndexSetExpr(expr: IndexSetExpr): TypeNode { return this.getUnitType(); }
     visitPropagateExpr(expr: PropagateExpr): TypeNode { return this.evaluate(expr.expression); }
