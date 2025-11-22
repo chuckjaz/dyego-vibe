@@ -24,6 +24,14 @@ function main() {
         const parser = new Parser(tokens);
         const statements = parser.parse();
 
+        const parserErrors = parser.getErrors();
+        if (parserErrors.length > 0) {
+            for (const error of parserErrors) {
+                console.error(error.message);
+            }
+            process.exit(1);
+        }
+
         const checker = new Checker();
         checker.check(statements);
 

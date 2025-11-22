@@ -11,6 +11,7 @@ import {
 export class Parser {
   private readonly tokens: Token[];
   private current = 0;
+  private errors: Error[] = [];
 
   constructor(tokens: Token[]) {
     this.tokens = tokens;
@@ -27,6 +28,10 @@ export class Parser {
     return statements;
   }
 
+  getErrors(): Error[] {
+      return this.errors;
+  }
+
   private declaration(): Stmt | null {
     try {
       if (this.match(TokenType.FUN)) return this.functionDeclaration("function");
@@ -37,7 +42,8 @@ export class Parser {
       if (this.match(TokenType.TRAIT)) return this.traitDeclaration();
 
       return this.statement();
-    } catch (error) {
+    } catch (error: any) {
+      this.errors.push(error);
       this.synchronize();
       return null;
     }
