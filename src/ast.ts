@@ -276,12 +276,14 @@ export class WhenEntry {
 }
 
 export class WhenExpr extends Expr {
+  keyword: Token;
   subject: Expr | null;
   entries: WhenEntry[];
   elseBranch: Expr | null; // Distinct from an entry with no conditions?
 
-  constructor(subject: Expr | null, entries: WhenEntry[], elseBranch: Expr | null) {
+  constructor(keyword: Token, subject: Expr | null, entries: WhenEntry[], elseBranch: Expr | null) {
     super();
+    this.keyword = keyword;
     this.subject = subject;
     this.entries = entries;
     this.elseBranch = elseBranch;

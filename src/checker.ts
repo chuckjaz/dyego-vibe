@@ -453,7 +453,54 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
     visitUseStmt(stmt: UseStmt): void { }
     visitTraitStmt(stmt: TraitStmt): void { }
 
-    visitWhenExpr(expr: WhenExpr): TypeNode { return this.getUnitType(); }
+    visitWhenExpr(expr: WhenExpr): TypeNode {
+        let subjectType: TypeNode | null = null;
+        if (expr.subject) {
+            subjectType = this.evaluate(expr.subject);
+        }
+
+        const entryTypes: TypeNode[] = [];
+
+        for (const entry of expr.entries) {
+            for (const condition of entry.conditions) {
+                const conditionType = this.evaluate(condition);
+                if (subjectType) {
+                    // Check compatibility with subject
+                    this.checkType(subjectType, conditionType, expr.keyword);
+                } else {
+                    // Condition must be boolean
+                    this.checkType(this.getBooleanType(), conditionType, expr.keyword);
+                }
+            }
+            entryTypes.push(this.evaluate(entry.body));
+        }
+
+        if (expr.elseBranch) {
+            entryTypes.push(this.evaluate(expr.elseBranch));
+        }
+
+        if (entryTypes.length === 0) {
+            return this.getUnitType();
+        }
+
+        const firstType = entryTypes[0];
+        const isUnit = this.typeToString(firstType) === "Unit";
+
+        // If it's an expression (returning non-Unit), it must have an else branch or cover all cases.
+        // For simplicity, we enforce 'else' branch for now if it returns a value.
+        // We might want to relax this if we can prove exhaustiveness (e.g. enum or boolean).
+        if (!isUnit && !expr.elseBranch) {
+             throw new CheckerError(expr.keyword, "'when' expression must be exhaustive, add an 'else' branch.");
+        }
+
+        for (let i = 1; i < entryTypes.length; i++) {
+            if (!this.isTypeCompatible(firstType, entryTypes[i])) {
+                 throw new CheckerError(expr.keyword, `When branches must return compatible types. Got ${this.typeToString(firstType)} and ${this.typeToString(entryTypes[i])}.`);
+            }
+        }
+
+        return firstType;
+    }
     visitLambdaExpr(expr: LambdaExpr): TypeNode { return this.getUnitType(); }
     visitArrayLiteralExpr(expr: ArrayLiteralExpr): TypeNode { return this.getUnitType(); }
     visitIndexGetExpr(expr: IndexGetExpr): TypeNode { return this.getUnitType(); }
