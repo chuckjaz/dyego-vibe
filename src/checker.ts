@@ -17,7 +17,7 @@ export class CheckerError extends Error {
     }
 }
 
-type TypeInfo = TypeNode | FunctionStmt;
+type TypeInfo = TypeNode | FunctionStmt | ValueStmt;
 
 class Environment {
     values: Map<string, TypeInfo> = new Map();
@@ -43,6 +43,18 @@ class Environment {
         throw new CheckerError(name, "Undefined variable '" + name.lexeme + "'.");
     }
 
+    lookup(name: string): TypeInfo | undefined {
+        if (this.values.has(name)) {
+            return this.values.get(name);
+        }
+
+        if (this.enclosing !== null) {
+            return this.enclosing.lookup(name);
+        }
+
+        return undefined;
+    }
+
     assign(name: Token, info: TypeInfo) {
         if (this.values.has(name.lexeme)) {
             this.values.set(name.lexeme, info);
@@ -61,6 +73,7 @@ class Environment {
 export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
     private environment: Environment = new Environment();
     private currentFunction: FunctionStmt | null = null;
+    private currentValue: ValueStmt | null = null;
     private errors: CheckerError[] = [];
 
     check(statements: Stmt[]) {
@@ -129,6 +142,45 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         return new NamedType(new Token(TokenType.IDENTIFIER, "Boolean", null, 0, 0));
     }
 
+    private checkFunction(stmt: FunctionStmt, defineName: boolean): void {
+        if (defineName) {
+            this.environment.define(stmt.name.lexeme, stmt);
+        }
+
+        const previousEnv = this.environment;
+        this.environment = new Environment(this.environment);
+
+        const previousFunction = this.currentFunction;
+        this.currentFunction = stmt;
+
+        if (this.currentValue && !defineName) {
+             const value = this.currentValue;
+             const thisType = new NamedType(value.name);
+             this.environment.define("this", thisType);
+
+             for (const field of value.fields) {
+                 this.environment.define(field.name.lexeme, field.type);
+             }
+        }
+
+        for (const param of stmt.params) {
+            this.environment.define(param.name.lexeme, param.type);
+        }
+
+        const bodyType = this.evaluate(stmt.body);
+
+        if (stmt.returnType) {
+            if (this.typeToString(bodyType) !== "Unit") {
+                this.checkType(stmt.returnType, bodyType, stmt.name);
+            } else if (this.typeToString(stmt.returnType) === "Unit") {
+                // OK
+            }
+        }
+
+        this.environment = previousEnv;
+        this.currentFunction = previousFunction;
+    }
+
     // --- StmtVisitor ---
 
     visitVarStmt(stmt: VarStmt): void {
@@ -152,30 +204,7 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
     }
 
     visitFunctionStmt(stmt: FunctionStmt): void {
-        this.environment.define(stmt.name.lexeme, stmt);
-
-        const previousEnv = this.environment;
-        this.environment = new Environment(this.environment);
-
-        const previousFunction = this.currentFunction;
-        this.currentFunction = stmt;
-
-        for (const param of stmt.params) {
-            this.environment.define(param.name.lexeme, param.type);
-        }
-
-        const bodyType = this.evaluate(stmt.body);
-
-        if (stmt.returnType) {
-            if (this.typeToString(bodyType) !== "Unit") {
-                this.checkType(stmt.returnType, bodyType, stmt.name);
-            } else if (this.typeToString(stmt.returnType) === "Unit") {
-                // OK
-            }
-        }
-
-        this.environment = previousEnv;
-        this.currentFunction = previousFunction;
+        this.checkFunction(stmt, true);
     }
 
     visitReturnStmt(stmt: ReturnStmt): void {
@@ -240,10 +269,38 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         if (info instanceof FunctionStmt) {
             return new NamedType(new Token(TokenType.IDENTIFIER, "Function", null, expr.name.line, expr.name.column));
         }
+        if (info instanceof ValueStmt) {
+             return new NamedType(info.name);
+        }
         return info;
     }
 
     visitCallExpr(expr: CallExpr): TypeNode {
+        if (expr.callee instanceof GetExpr) {
+            const getExpr = expr.callee;
+            const objectType = this.evaluate(getExpr.object);
+
+            if (objectType instanceof NamedType) {
+                const info = this.environment.lookup(objectType.name.lexeme);
+                if (info instanceof ValueStmt) {
+                    const method = info.methods.find(m => m.name.lexeme === getExpr.name.lexeme);
+                    if (method) {
+                        if (expr.arguments.length !== method.params.length) {
+                            throw new CheckerError(expr.paren, `Expected ${method.params.length} arguments but got ${expr.arguments.length}.`);
+                        }
+                        for (let i = 0; i < expr.arguments.length; i++) {
+                            const arg = expr.arguments[i];
+                            const param = method.params[i];
+                            const argType = this.evaluate(arg.value);
+                            this.checkType(param.type, argType, expr.paren);
+                        }
+                        return method.returnType || this.getUnitType();
+                    }
+                     throw new CheckerError(getExpr.name, `Undefined method '${getExpr.name.lexeme}' on '${info.name.lexeme}'.`);
+                }
+            }
+        }
+
         let calleeInfo: TypeInfo | null = null;
 
         if (expr.callee instanceof VariableExpr) {
@@ -268,8 +325,20 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
             }
 
             return func.returnType || this.getUnitType();
+        } else if (calleeInfo instanceof ValueStmt) {
+             const val = calleeInfo;
+             if (expr.arguments.length !== val.fields.length) {
+                throw new CheckerError(expr.paren, `Expected ${val.fields.length} arguments but got ${expr.arguments.length}.`);
+             }
+             for (let i = 0; i < expr.arguments.length; i++) {
+                 const arg = expr.arguments[i];
+                 const field = val.fields[i];
+                 const argType = this.evaluate(arg.value);
+                 this.checkType(field.type, argType, expr.paren);
+             }
+             return new NamedType(val.name);
         } else {
-            throw new CheckerError(expr.paren, "Can only call named functions.");
+             throw new CheckerError(expr.paren, "Can only call named functions.");
         }
     }
 
@@ -277,6 +346,9 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         const variableType = this.environment.get(expr.name);
         if (variableType instanceof FunctionStmt) {
              throw new CheckerError(expr.name, "Cannot assign to a function.");
+        }
+        if (variableType instanceof ValueStmt) {
+            throw new CheckerError(expr.name, "Cannot assign to a value type.");
         }
 
         const valueType = this.evaluate(expr.value);
@@ -296,7 +368,24 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         return left;
     }
 
-    visitGetExpr(expr: GetExpr): TypeNode { return this.getUnitType(); }
+    visitGetExpr(expr: GetExpr): TypeNode {
+        const objectType = this.evaluate(expr.object);
+        if (objectType instanceof NamedType) {
+             const info = this.environment.lookup(objectType.name.lexeme);
+             if (info instanceof ValueStmt) {
+                 const field = info.fields.find(f => f.name.lexeme === expr.name.lexeme);
+                 if (field) {
+                     return field.type;
+                 }
+                 const method = info.methods.find(m => m.name.lexeme === expr.name.lexeme);
+                 if (method) {
+                     return new NamedType(new Token(TokenType.IDENTIFIER, "Function", null, expr.name.line, expr.name.column));
+                 }
+                 throw new CheckerError(expr.name, `Undefined property '${expr.name.lexeme}' on '${info.name.lexeme}'.`);
+             }
+        }
+        return this.getUnitType();
+    }
     visitGroupingExpr(expr: GroupingExpr): TypeNode { return this.evaluate(expr.expression); }
     visitLogicalExpr(expr: LogicalExpr): TypeNode {
         this.evaluate(expr.left);
@@ -304,7 +393,13 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         return this.getBooleanType();
     }
     visitSetExpr(expr: SetExpr): TypeNode { return this.getUnitType(); }
-    visitThisExpr(expr: ThisExpr): TypeNode { return this.getUnitType(); }
+    visitThisExpr(expr: ThisExpr): TypeNode {
+        const type = this.environment.lookup("this");
+        if (type instanceof NamedType || type instanceof UnionType || type instanceof ArrayType || type instanceof OptionalType || type instanceof GenericType) {
+             return type as TypeNode;
+        }
+        throw new CheckerError(expr.keyword, "Invalid use of 'this'.");
+    }
     visitUnaryExpr(expr: UnaryExpr): TypeNode { return this.evaluate(expr.right); }
 
     visitIfExpr(expr: IfExpr): TypeNode {
@@ -336,7 +431,20 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
 
     visitBreakStmt(stmt: BreakStmt): void { }
     visitContinueStmt(stmt: ContinueStmt): void { }
-    visitValueStmt(stmt: ValueStmt): void { }
+
+    visitValueStmt(stmt: ValueStmt): void {
+        this.environment.define(stmt.name.lexeme, stmt);
+
+        const previousValue = this.currentValue;
+        this.currentValue = stmt;
+
+        for (const method of stmt.methods) {
+            this.checkFunction(method, false);
+        }
+
+        this.currentValue = previousValue;
+    }
+
     visitUseStmt(stmt: UseStmt): void { }
     visitTraitStmt(stmt: TraitStmt): void { }
 
