@@ -209,4 +209,53 @@ line2"`;
     expect(tokens[3].column).toBe(9); // Starts at column 9
     expect(tokens[3].literal).toBe("line1\nline2");
   });
+
+  it("should tokenize backtick quoted identifier same as normal identifier", () => {
+    const input = "val `a` = 1";
+    const lexer = new Lexer(input);
+    const tokens = lexer.scanTokens();
+
+    expect(tokens[0].type).toBe(TokenType.VAL);
+
+    // Should be IDENTIFIER
+    expect(tokens[1].type).toBe(TokenType.IDENTIFIER);
+    expect(tokens[1].lexeme).toBe("a");
+
+    expect(tokens[2].type).toBe(TokenType.EQUAL);
+    expect(tokens[3].literal).toBe(1);
+  });
+
+  it("should allow keywords as identifiers when quoted", () => {
+    const input = "val `if` = 1";
+    const lexer = new Lexer(input);
+    const tokens = lexer.scanTokens();
+
+    expect(tokens[0].type).toBe(TokenType.VAL);
+    expect(tokens[1].type).toBe(TokenType.IDENTIFIER);
+    expect(tokens[1].lexeme).toBe("if");
+  });
+
+  it("should include whitespace in identifier", () => {
+    const input = "val `foo bar` = 1";
+    const lexer = new Lexer(input);
+    const tokens = lexer.scanTokens();
+
+    expect(tokens[1].type).toBe(TokenType.IDENTIFIER);
+    expect(tokens[1].lexeme).toBe("foo bar");
+  });
+
+  it("should allow any unicode char except line-end or backtick", () => {
+     const input = "val `Start 🚀 End` = 1";
+     const lexer = new Lexer(input);
+     const tokens = lexer.scanTokens();
+
+     expect(tokens[1].type).toBe(TokenType.IDENTIFIER);
+     expect(tokens[1].lexeme).toBe("Start 🚀 End");
+  });
+
+  it("should fail on newline in backtick identifier", () => {
+      const input = "val `foo\nbar` = 1";
+      const lexer = new Lexer(input);
+      expect(() => lexer.scanTokens()).toThrow();
+  });
 });
