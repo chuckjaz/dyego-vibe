@@ -431,3 +431,115 @@ describe('Type Checker', () => {
         expect(errors.length).toBe(0);
     });
 });
+
+describe('Extension Methods', () => {
+    test('parses extension method', () => {
+        // We need to access parser directly for this test as check() swallows AST
+        const lexer = new Lexer('fun i32.square(): i32 { return this * this; }');
+        const tokens = lexer.scanTokens();
+        const parser = new Parser(tokens);
+        const stmts = parser.parse();
+
+        expect(stmts.length).toBe(1);
+        // We need to cast to any or import FunctionStmt/NamedType if not available
+        // They are imported in checker.test.ts
+        const { FunctionStmt, NamedType } = require('../src/ast');
+        const func = stmts[0] as any;
+        expect(func).toBeInstanceOf(FunctionStmt);
+        expect(func.name.lexeme).toBe('square');
+        expect(func.extensionType).toBeInstanceOf(NamedType);
+        expect((func.extensionType as any).name.lexeme).toBe('i32');
+    });
+
+    test('checks extension method on primitive', () => {
+        const source = `
+      fun f64.floor(): f64 { return this; }
+      val pi = 3.14;
+      val three = pi.floor();
+    `;
+        const errors = check(source);
+        expect(errors.length).toBe(0);
+    });
+
+    test('checks extension method on user type', () => {
+        const source = `
+      value Point(val x: f64, val y: f64) {}
+      fun Point.sum(): f64 { return this.x + this.y; }
+      val p = Point(1.0, 2.0);
+      val s = p.sum();
+    `;
+        const errors = check(source);
+        expect(errors.length).toBe(0);
+    });
+
+    test('extension method resolves correctly', () => {
+        const source = `
+       fun i32.inc(): i32 { return this + 1; }
+       val x = 1.inc();
+     `;
+        const errors = check(source);
+        expect(errors.length).toBe(0);
+    });
+
+    test('instance method takes precedence', () => {
+        const source = `
+        value Box(val x: i32) {
+            fun foo(): i32 { return 1; }
+        }
+        fun Box.foo(): i32 { return 2; }
+
+        val b = Box(10);
+        val r = b.foo();
+      `;
+        const errors = check(source);
+        expect(errors.length).toBe(0);
+
+        const source2 = `
+        value Box(val x: i32) {
+            fun foo(): i32 { return 1; }
+        }
+        fun Box.foo(): f64 { return 2.0; }
+
+        val b = Box(10);
+        val r: i32 = b.foo(); // Should be i32 (instance)
+      `;
+        const errors2 = check(source2);
+        expect(errors2.length).toBe(0);
+
+        const source3 = `
+        value Box(val x: i32) {
+            fun foo(): i32 { return 1; }
+        }
+        fun Box.foo(): f64 { return 2.0; }
+
+        val b = Box(10);
+        val r: f64 = b.foo(); // Should fail if instance is picked
+      `;
+        const errors3 = check(source3);
+        expect(errors3.length).toBeGreaterThan(0);
+        expect(errors3[0].message).toContain("Expected type f64, but got i32");
+    });
+
+    test('extension method scoping', () => {
+        const source = `
+        val x = 1;
+        if (true) {
+            fun i32.plusOne(): i32 { return this + 1; }
+            val y = x.plusOne();
+        }
+      `;
+        const errors = check(source);
+        expect(errors.length).toBe(0);
+
+        const sourceFail = `
+        val x = 1;
+        if (true) {
+            fun i32.plusOne(): i32 { return this + 1; }
+        }
+        val z = x.plusOne();
+      `;
+        const errorsFail = check(sourceFail);
+        expect(errorsFail.length).toBeGreaterThan(0);
+        expect(errorsFail[0].message).toContain("Undefined property or method 'plusOne'");
+    });
+});

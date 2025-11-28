@@ -21,6 +21,7 @@ type TypeInfo = TypeNode | FunctionStmt | ValueStmt;
 
 class Environment {
     values: Map<string, TypeInfo> = new Map();
+    extensions: FunctionStmt[] = [];
     enclosing: Environment | null;
 
     constructor(enclosing: Environment | null = null) {
@@ -29,6 +30,10 @@ class Environment {
 
     define(name: string, info: TypeInfo) {
         this.values.set(name, info);
+    }
+
+    addExtension(stmt: FunctionStmt) {
+        this.extensions.push(stmt);
     }
 
     get(name: Token): TypeInfo {
@@ -188,6 +193,21 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         return "Type";
     }
 
+    private lookupExtension(name: string, type: TypeNode): FunctionStmt | undefined {
+        let env: Environment | null = this.environment;
+        while (env) {
+            for (const ext of env.extensions) {
+                if (ext.name.lexeme === name && ext.extensionType) {
+                    if (this.isTypeCompatible(ext.extensionType, type)) {
+                        return ext;
+                    }
+                }
+            }
+            env = env.enclosing;
+        }
+        return undefined;
+    }
+
     private getUnitType(line: number = 0): TypeNode {
         return new NamedType(new Token(TokenType.IDENTIFIER, "Unit", null, line, 0));
     }
@@ -215,6 +235,8 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
             for (const field of value.fields) {
                 this.environment.define(field.name.lexeme, field.type);
             }
+        } else if (stmt.extensionType) {
+            this.environment.define("this", stmt.extensionType);
         }
 
         for (const param of stmt.params) {
@@ -281,7 +303,12 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
     }
 
     visitFunctionStmt(stmt: FunctionStmt): void {
-        this.checkFunction(stmt, true);
+        if (stmt.extensionType) {
+            this.environment.addExtension(stmt);
+            this.checkFunction(stmt, false);
+        } else {
+            this.checkFunction(stmt, true);
+        }
     }
 
     visitReturnStmt(stmt: ReturnStmt): void {
@@ -384,10 +411,34 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
                         }
                         return method.returnType || this.getUnitType();
                     }
+                    // Fall through to extension check
+                }
+            }
+
+            // Check for extension method
+            const extension = this.lookupExtension(getExpr.name.lexeme, objectType);
+            if (extension) {
+                if (expr.arguments.length !== extension.params.length) {
+                    throw new CheckerError(expr.paren, `Expected ${extension.params.length} arguments but got ${expr.arguments.length}.`);
+                }
+                for (let i = 0; i < expr.arguments.length; i++) {
+                    const arg = expr.arguments[i];
+                    const param = extension.params[i];
+                    const argType = this.evaluate(arg.value);
+                    this.checkType(param.type, argType, expr.paren);
+                }
+                return extension.returnType || this.getUnitType();
+            }
+
+            if (objectType instanceof NamedType) {
+                const info = this.environment.lookup(objectType.name.lexeme);
+                if (info instanceof ValueStmt) {
                     throw new CheckerError(getExpr.name, `Undefined method '${getExpr.name.lexeme}' on '${info.name.lexeme}'.`);
                 }
             }
+            throw new CheckerError(getExpr.name, `Undefined property or method '${getExpr.name.lexeme}'.`);
         }
+
 
         let calleeInfo: TypeInfo | null | undefined = null;
 
@@ -518,9 +569,22 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
                 if (method) {
                     return new NamedType(new Token(TokenType.IDENTIFIER, "Function", null, expr.name.line, expr.name.column));
                 }
+                // Fall through to extension check
+            }
+        }
+
+        const extension = this.lookupExtension(expr.name.lexeme, objectType);
+        if (extension) {
+            return new NamedType(new Token(TokenType.IDENTIFIER, "Function", null, expr.name.line, expr.name.column));
+        }
+
+        if (objectType instanceof NamedType) {
+            const info = this.environment.lookup(objectType.name.lexeme);
+            if (info instanceof ValueStmt) {
                 throw new CheckerError(expr.name, `Undefined property '${expr.name.lexeme}' on '${info.name.lexeme}'.`);
             }
         }
+
         return this.getUnitType();
     }
     visitGroupingExpr(expr: GroupingExpr): TypeNode { return this.evaluate(expr.expression); }

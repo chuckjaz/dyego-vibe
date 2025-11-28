@@ -80,7 +80,22 @@ export class Parser {
       this.consume(TokenType.GREATER, "Expect '>' after generic parameters.");
     }
 
-    const name = this.consume(TokenType.IDENTIFIER, `Expect ${kind} name.`);
+    let name: Token;
+    let extensionType: TypeNode | null = null;
+
+    // Try to parse a type. This could be the function name (as a NamedType) or the extension type.
+    const type = this.parseType();
+
+    if (this.match(TokenType.DOT)) {
+      extensionType = type;
+      name = this.consume(TokenType.IDENTIFIER, `Expect ${kind} name.`);
+    } else {
+      if (type instanceof NamedType && type.generics.length === 0) {
+        name = type.name;
+      } else {
+        throw this.error(this.previous(), `Invalid ${kind} name.`);
+      }
+    }
     this.consume(TokenType.LEFT_PAREN, `Expect '(' after ${kind} name.`);
     const parameters: { name: Token, type: TypeNode }[] = [];
 
@@ -115,7 +130,7 @@ export class Parser {
       }
       body = this.block();
     }
-    return new FunctionStmt(name, parameters, returnType, body, generics, isMutating, kind === "operator");
+    return new FunctionStmt(name, parameters, returnType, body, generics, isMutating, kind === "operator", extensionType);
   }
 
   private varDeclaration(): Stmt {
