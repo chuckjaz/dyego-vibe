@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "build": "tsc && cp src/prefix.dy dist/"
   },
   "keywords": [],
   "author": "",
