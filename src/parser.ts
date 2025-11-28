@@ -102,10 +102,19 @@ export class Parser {
     // The block() method consumes the opening brace.
     // check for '{' before calling block to ensure correct error message location if needed,
     // but block() handles it.
-    if (!this.check(TokenType.LEFT_BRACE)) {
-        throw this.error(this.peek(), `Expect '{' before ${kind} body.`);
+    let body: BlockExpr;
+    if (this.match(TokenType.EQUAL)) {
+        const value = this.expression();
+        this.consume(TokenType.SEMICOLON, "Expect ';' after expression body.");
+        // We use the '=' token as the location for the synthetic return statement.
+        // This ensures error messages point to something relevant.
+        body = new BlockExpr([new ReturnStmt(this.previous(), value)]);
+    } else {
+        if (!this.check(TokenType.LEFT_BRACE)) {
+            throw this.error(this.peek(), `Expect '{' before ${kind} body.`);
+        }
+        body = this.block();
     }
-    const body = this.block();
     return new FunctionStmt(name, parameters, returnType, body, generics, isMutating);
   }
 
