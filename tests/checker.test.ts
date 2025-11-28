@@ -12,7 +12,7 @@ function check(source: string) {
     const parserErrors = parser.getErrors();
     if (parserErrors.length > 0) {
         return parserErrors.map(e => {
-             return new CheckerError({ lexeme: "", line: 0, column: 0 } as any, e.message);
+            return new CheckerError({ lexeme: "", line: 0, column: 0 } as any, e.message);
         });
     }
 
@@ -74,7 +74,7 @@ describe('Type Checker', () => {
     });
 
     test('Valid function return type', () => {
-         const source = `
+        const source = `
             fun getInt(): i32 {
                 return 42;
             }
@@ -84,14 +84,14 @@ describe('Type Checker', () => {
     });
 
     test('Invalid function return type', () => {
-         const source = `
+        const source = `
             fun getInt(): i32 {
                 return "42";
             }
         `;
         const errors = check(source);
         expect(errors.length).toBe(1);
-         expect(errors[0].message).toContain("Expected type i32, but got String");
+        expect(errors[0].message).toContain("Expected type i32, but got String");
     });
 
     test('Variable reassignment type check', () => {
@@ -179,7 +179,7 @@ describe('Type Checker', () => {
     });
 
     test('When expression branches compatibility mismatch', () => {
-         const source = `
+        const source = `
             var x = when (true) {
                 true -> 1
                 else -> "string"
@@ -198,87 +198,87 @@ describe('Type Checker', () => {
                else -> 13
            };
        `;
-       const errors = check(source);
-       expect(errors.length).toBe(0);
-   });
+        const errors = check(source);
+        expect(errors.length).toBe(0);
+    });
 
-   test('When expression with subject mismatch', () => {
+    test('When expression with subject mismatch', () => {
         const source = `
            var x: i32 = when (10) {
                true -> 11
                else -> 12
            };
        `;
-       const errors = check(source);
-       expect(errors.length).toBeGreaterThan(0);
-       expect(errors[0].message).toContain("Expected type i32, but got Boolean");
-   });
+        const errors = check(source);
+        expect(errors.length).toBeGreaterThan(0);
+        expect(errors[0].message).toContain("Expected type i32, but got Boolean");
+    });
 
-   test('When expression returning value must have else branch', () => {
-       const source = `
+    test('When expression returning value must have else branch', () => {
+        const source = `
            var x: i32 = when (true) {
                true -> 1
            };
        `;
-       const errors = check(source);
-       expect(errors.length).toBeGreaterThan(0);
-       expect(errors[0].message).toContain("'when' expression must be exhaustive");
-   });
+        const errors = check(source);
+        expect(errors.length).toBeGreaterThan(0);
+        expect(errors[0].message).toContain("'when' expression must be exhaustive");
+    });
 
-   // --- Array Tests ---
+    // --- Array Tests ---
 
-   test('Array literal inference', () => {
-       const source = `
+    test('Array literal inference', () => {
+        const source = `
            var x = [1, 2, 3];
        `;
-       // Should infer i32[]
-       const errors = check(source);
-       expect(errors.length).toBe(0);
-   });
+        // Should infer i32[]
+        const errors = check(source);
+        expect(errors.length).toBe(0);
+    });
 
-   test('Array literal type mismatch', () => {
-       const source = `
+    test('Array literal type mismatch', () => {
+        const source = `
            var x = [1, "2"];
        `;
-       const errors = check(source);
-       expect(errors.length).toBe(1);
-       expect(errors[0].message).toContain("Array elements must be of the same type");
-   });
+        const errors = check(source);
+        expect(errors.length).toBe(1);
+        expect(errors[0].message).toContain("Array elements must be of the same type");
+    });
 
-   test('Array literal assignment', () => {
-       const source = `
+    test('Array literal assignment', () => {
+        const source = `
            var x: i32[] = [1, 2, 3];
        `;
-       const errors = check(source);
-       expect(errors.length).toBe(0);
-   });
+        const errors = check(source);
+        expect(errors.length).toBe(0);
+    });
 
-   test('Array literal assignment mismatch', () => {
-       const source = `
+    test('Array literal assignment mismatch', () => {
+        const source = `
            var x: String[] = [1, 2, 3];
        `;
-       const errors = check(source);
-       expect(errors.length).toBe(1);
-       expect(errors[0].message).toContain("Expected type String[], but got i32[]");
-   });
+        const errors = check(source);
+        expect(errors.length).toBe(1);
+        expect(errors[0].message).toContain("Expected type String[], but got i32[]");
+    });
 
     test('Nested Array literal inference', () => {
-       const source = `
+        const source = `
            var x = [[1, 2], [3, 4]];
        `;
-       // Should infer i32[][]
-       const errors = check(source);
-       expect(errors.length).toBe(0);
-   });
+        // Should infer i32[][]
+        const errors = check(source);
+        expect(errors.length).toBe(0);
+    });
 
-   test('Nested Array literal type mismatch', () => {
-       const source = `
+    test('Nested Array literal type mismatch', () => {
+        const source = `
            var x = [[1, 2], ["3", "4"]];
        `;
-       const errors = check(source);
-       expect(errors.length).toBe(1);
-       expect(errors[0].message).toContain("Array elements must be of the same type");
-   });
+        const errors = check(source);
+        expect(errors.length).toBe(1);
+        expect(errors[0].message).toContain("Array elements must be of the same type");
+    });
 
     test('Issue #16: Array index has incorrect type', () => {
         const source = `
@@ -342,6 +342,49 @@ describe('Type Checker', () => {
             val x: i32[] = [];
         `;
         const errors = check(source);
+        expect(errors.length).toBe(0);
+    });
+    test('Operator overloading type check', () => {
+        const source = `
+            value Vector(val x: f64, val y: f64) {
+                operator fun \`+\`(other: Vector) = Vector(x = x + other.x, y = y + other.y);
+                operator fun \`*\`(scale: f64) = Vector(x = x * scale, y = y * scale);
+                operator fun dot(other: Vector): f64 = x * other.x + y * other.y;
+            }
+            val v1 = Vector(1.0, 2.0);
+            val v2 = Vector(3.0, 4.0);
+            val v3: Vector = v1 + v2;
+            val v4: Vector = v1 * 2.0;
+            val d: f64 = v1 dot v2;
+        `;
+        const errors = check(source);
+        if (errors.length > 0) {
+            console.log(errors.map(e => e.message));
+        }
+        expect(errors.length).toBe(0);
+    });
+
+    test('Operator overloading type mismatch', () => {
+        const source = `
+            value Vector(val x: f64, val y: f64) {
+                operator fun \`+\`(other: Vector) = Vector(x = x + other.x, y = y + other.y);
+            }
+            val v1 = Vector(1.0, 2.0);
+            val v3 = v1 + 2.0; // Error: Expected Vector, got f64
+        `;
+        const errors = check(source);
+        expect(errors.length).toBeGreaterThan(0);
+        expect(errors[0].message).toContain("Expected type Vector, but got f64");
+    });
+    test('examples/vector.dy checks correctly', () => {
+        const fs = require('fs');
+        const path = require('path');
+        const filePath = path.join(__dirname, '../examples/vector.dy');
+        const source = fs.readFileSync(filePath, 'utf-8');
+        const errors = check(source);
+        if (errors.length > 0) {
+            console.log(errors.map(e => e.message));
+        }
         expect(errors.length).toBe(0);
     });
 });

@@ -76,6 +76,32 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
     private currentValue: ValueStmt | null = null;
     private errors: CheckerError[] = [];
     private expectedType: TypeNode | null = null;
+    private currentInferredReturnType: TypeNode | null = null;
+
+    constructor() {
+        this.definePrimitives();
+    }
+
+    private definePrimitives() {
+        const f64Methods = [
+            new FunctionStmt(
+                new Token(TokenType.IDENTIFIER, "sqrt", null, 0, 0),
+                [], // params
+                new NamedType(new Token(TokenType.IDENTIFIER, "f64", null, 0, 0)), // return type
+                new BlockExpr([]), // body
+                [], // generics
+                false, // isMutating
+                false // isOperator
+            )
+        ];
+        const f64 = new ValueStmt(
+            new Token(TokenType.IDENTIFIER, "f64", null, 0, 0),
+            [], // fields
+            f64Methods,
+            [] // generics
+        );
+        this.environment.define("f64", f64);
+    }
 
     check(statements: Stmt[]) {
         try {
@@ -121,7 +147,7 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         const sourceStr = this.typeToString(source);
 
         if (targetStr !== "Type" && sourceStr !== "Type") {
-             return targetStr === sourceStr;
+            return targetStr === sourceStr;
         }
         return JSON.stringify(target) === JSON.stringify(source);
     }
@@ -163,18 +189,21 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         this.currentFunction = stmt;
 
         if (this.currentValue && !defineName) {
-             const value = this.currentValue;
-             const thisType = new NamedType(value.name);
-             this.environment.define("this", thisType);
+            const value = this.currentValue;
+            const thisType = new NamedType(value.name);
+            this.environment.define("this", thisType);
 
-             for (const field of value.fields) {
-                 this.environment.define(field.name.lexeme, field.type);
-             }
+            for (const field of value.fields) {
+                this.environment.define(field.name.lexeme, field.type);
+            }
         }
 
         for (const param of stmt.params) {
             this.environment.define(param.name.lexeme, param.type);
         }
+
+        const previousInferredReturnType = this.currentInferredReturnType;
+        this.currentInferredReturnType = null;
 
         const bodyType = this.evaluate(stmt.body);
 
@@ -184,10 +213,23 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
             } else if (this.typeToString(stmt.returnType) === "Unit") {
                 // OK
             }
+        } else {
+            // Infer return type
+            if (this.typeToString(bodyType) !== "Unit") {
+                if (this.currentInferredReturnType) {
+                    if (!this.isTypeCompatible(this.currentInferredReturnType, bodyType)) {
+                        throw new CheckerError(stmt.name, `Function body returns ${this.typeToString(bodyType)}, but previous returns were ${this.typeToString(this.currentInferredReturnType)}.`);
+                    }
+                } else {
+                    this.currentInferredReturnType = bodyType;
+                }
+            }
+            stmt.returnType = this.currentInferredReturnType || this.getUnitType();
         }
 
         this.environment = previousEnv;
         this.currentFunction = previousFunction;
+        this.currentInferredReturnType = previousInferredReturnType;
     }
 
     // --- StmtVisitor ---
@@ -232,11 +274,19 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         if (stmt.value) {
             valueType = this.evaluate(stmt.value);
         } else {
-             valueType = this.getUnitType(stmt.keyword.line);
+            valueType = this.getUnitType(stmt.keyword.line);
         }
 
         if (this.currentFunction.returnType) {
-             this.checkType(this.currentFunction.returnType, valueType, stmt.keyword);
+            this.checkType(this.currentFunction.returnType, valueType, stmt.keyword);
+        } else {
+            if (this.currentInferredReturnType) {
+                if (!this.isTypeCompatible(this.currentInferredReturnType, valueType)) {
+                    throw new CheckerError(stmt.keyword, `Return types must be consistent. Expected ${this.typeToString(this.currentInferredReturnType)}, but got ${this.typeToString(valueType)}.`);
+                }
+            } else {
+                this.currentInferredReturnType = valueType;
+            }
         }
     }
 
@@ -266,7 +316,7 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
     visitLiteralExpr(expr: LiteralExpr): TypeNode {
         if (typeof expr.value === 'number') {
             if (expr.tokenType === TokenType.FLOAT) {
-                 return new NamedType(new Token(TokenType.IDENTIFIER, "f64", null, 0, 0)); // Default float literal to f64 as per Issue #10
+                return new NamedType(new Token(TokenType.IDENTIFIER, "f64", null, 0, 0)); // Default float literal to f64 as per Issue #10
             }
             if (Number.isInteger(expr.value)) {
                 return new NamedType(new Token(TokenType.IDENTIFIER, "i32", null, 0, 0)); // Default integer type
@@ -278,7 +328,7 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         } else if (typeof expr.value === 'boolean') {
             return new NamedType(new Token(TokenType.IDENTIFIER, "Boolean", null, 0, 0));
         } else if (expr.value === null) {
-             return new NamedType(new Token(TokenType.IDENTIFIER, "Null", null, 0, 0));
+            return new NamedType(new Token(TokenType.IDENTIFIER, "Null", null, 0, 0));
         }
         throw new CheckerError(new Token(TokenType.IDENTIFIER, "Unknown literal", null, 0, 0), "Unknown literal type.");
     }
@@ -289,7 +339,7 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
             return new NamedType(new Token(TokenType.IDENTIFIER, "Function", null, expr.name.line, expr.name.column));
         }
         if (info instanceof ValueStmt) {
-             return new NamedType(info.name);
+            return new NamedType(info.name);
         }
         return info;
     }
@@ -315,15 +365,22 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
                         }
                         return method.returnType || this.getUnitType();
                     }
-                     throw new CheckerError(getExpr.name, `Undefined method '${getExpr.name.lexeme}' on '${info.name.lexeme}'.`);
+                    throw new CheckerError(getExpr.name, `Undefined method '${getExpr.name.lexeme}' on '${info.name.lexeme}'.`);
                 }
             }
         }
 
-        let calleeInfo: TypeInfo | null = null;
+        let calleeInfo: TypeInfo | null | undefined = null;
 
         if (expr.callee instanceof VariableExpr) {
-             calleeInfo = this.environment.get(expr.callee.name);
+            const callee = expr.callee;
+            calleeInfo = this.environment.lookup(callee.name.lexeme);
+            if (!calleeInfo && this.currentValue) {
+                calleeInfo = this.currentValue.methods.find(m => m.name.lexeme === callee.name.lexeme);
+            }
+            if (!calleeInfo) {
+                throw new CheckerError(callee.name, "Undefined variable '" + callee.name.lexeme + "'.");
+            }
         } else {
             const _calleeType = this.evaluate(expr.callee);
         }
@@ -345,26 +402,26 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
 
             return func.returnType || this.getUnitType();
         } else if (calleeInfo instanceof ValueStmt) {
-             const val = calleeInfo;
-             if (expr.arguments.length !== val.fields.length) {
+            const val = calleeInfo;
+            if (expr.arguments.length !== val.fields.length) {
                 throw new CheckerError(expr.paren, `Expected ${val.fields.length} arguments but got ${expr.arguments.length}.`);
-             }
-             for (let i = 0; i < expr.arguments.length; i++) {
-                 const arg = expr.arguments[i];
-                 const field = val.fields[i];
-                 const argType = this.evaluate(arg.value);
-                 this.checkType(field.type, argType, expr.paren);
-             }
-             return new NamedType(val.name);
+            }
+            for (let i = 0; i < expr.arguments.length; i++) {
+                const arg = expr.arguments[i];
+                const field = val.fields[i];
+                const argType = this.evaluate(arg.value);
+                this.checkType(field.type, argType, expr.paren);
+            }
+            return new NamedType(val.name);
         } else {
-             throw new CheckerError(expr.paren, "Can only call named functions.");
+            throw new CheckerError(expr.paren, "Can only call named functions.");
         }
     }
 
     visitAssignExpr(expr: AssignExpr): TypeNode {
         const variableType = this.environment.get(expr.name);
         if (variableType instanceof FunctionStmt) {
-             throw new CheckerError(expr.name, "Cannot assign to a function.");
+            throw new CheckerError(expr.name, "Cannot assign to a function.");
         }
         if (variableType instanceof ValueStmt) {
             throw new CheckerError(expr.name, "Cannot assign to a value type.");
@@ -378,10 +435,38 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
     visitBinaryExpr(expr: BinaryExpr): TypeNode {
         const left = this.evaluate(expr.left);
         const right = this.evaluate(expr.right);
+
+        // Check for overloaded operator on the left operand
+        if (left instanceof NamedType) {
+            const info = this.environment.lookup(left.name.lexeme);
+            if (info instanceof ValueStmt) {
+                const operatorName = expr.operator.lexeme;
+                const method = info.methods.find(m => m.name.lexeme === operatorName);
+
+                if (method) {
+                    // Check if it's a valid operator overload
+                    // For standard operators, it must be marked as 'operator'
+                    // For infix identifiers, it can be a regular method (or operator?)
+                    // The parser sets isOperator=true for 'operator fun'.
+                    // We should enforce isOperator for standard ops?
+                    // The prompt says "overloaded operators are check against the function signature".
+
+                    if (method.params.length !== 1) {
+                        throw new CheckerError(expr.operator, `Operator '${operatorName}' must have exactly one parameter.`);
+                    }
+
+                    const param = method.params[0];
+                    this.checkType(param.type, right, expr.operator);
+
+                    return method.returnType || this.getUnitType();
+                }
+            }
+        }
+
         this.checkType(left, right, expr.operator);
 
         if (["EQUAL_EQUAL", "BANG_EQUAL", "GREATER", "GREATER_EQUAL", "LESS", "LESS_EQUAL"].includes(expr.operator.type)) {
-             return this.getBooleanType();
+            return this.getBooleanType();
         }
 
         return left;
@@ -390,18 +475,18 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
     visitGetExpr(expr: GetExpr): TypeNode {
         const objectType = this.evaluate(expr.object);
         if (objectType instanceof NamedType) {
-             const info = this.environment.lookup(objectType.name.lexeme);
-             if (info instanceof ValueStmt) {
-                 const field = info.fields.find(f => f.name.lexeme === expr.name.lexeme);
-                 if (field) {
-                     return field.type;
-                 }
-                 const method = info.methods.find(m => m.name.lexeme === expr.name.lexeme);
-                 if (method) {
-                     return new NamedType(new Token(TokenType.IDENTIFIER, "Function", null, expr.name.line, expr.name.column));
-                 }
-                 throw new CheckerError(expr.name, `Undefined property '${expr.name.lexeme}' on '${info.name.lexeme}'.`);
-             }
+            const info = this.environment.lookup(objectType.name.lexeme);
+            if (info instanceof ValueStmt) {
+                const field = info.fields.find(f => f.name.lexeme === expr.name.lexeme);
+                if (field) {
+                    return field.type;
+                }
+                const method = info.methods.find(m => m.name.lexeme === expr.name.lexeme);
+                if (method) {
+                    return new NamedType(new Token(TokenType.IDENTIFIER, "Function", null, expr.name.line, expr.name.column));
+                }
+                throw new CheckerError(expr.name, `Undefined property '${expr.name.lexeme}' on '${info.name.lexeme}'.`);
+            }
         }
         return this.getUnitType();
     }
@@ -415,7 +500,7 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
     visitThisExpr(expr: ThisExpr): TypeNode {
         const type = this.environment.lookup("this");
         if (type instanceof NamedType || type instanceof UnionType || type instanceof ArrayType || type instanceof OptionalType || type instanceof GenericType) {
-             return type as TypeNode;
+            return type as TypeNode;
         }
         throw new CheckerError(expr.keyword, "Invalid use of 'this'.");
     }
@@ -431,7 +516,7 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         if (expr.elseBranch) {
             const elseType = this.evaluate(expr.elseBranch);
             if (!this.isTypeCompatible(thenType, elseType)) {
-                 throw new CheckerError(new Token(TokenType.ELSE, "else", null, 0, 0), `If branches must return compatible types. Got ${this.typeToString(thenType)} and ${this.typeToString(elseType)}.`);
+                throw new CheckerError(new Token(TokenType.ELSE, "else", null, 0, 0), `If branches must return compatible types. Got ${this.typeToString(thenType)} and ${this.typeToString(elseType)}.`);
             }
             return thenType;
         }
@@ -504,12 +589,12 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         // For simplicity, we enforce 'else' branch for now if it returns a value.
         // We might want to relax this if we can prove exhaustiveness (e.g. enum or boolean).
         if (!isUnit && !expr.elseBranch) {
-             throw new CheckerError(expr.keyword, "'when' expression must be exhaustive, add an 'else' branch.");
+            throw new CheckerError(expr.keyword, "'when' expression must be exhaustive, add an 'else' branch.");
         }
 
         for (let i = 1; i < entryTypes.length; i++) {
             if (!this.isTypeCompatible(firstType, entryTypes[i])) {
-                 throw new CheckerError(expr.keyword, `When branches must return compatible types. Got ${this.typeToString(firstType)} and ${this.typeToString(entryTypes[i])}.`);
+                throw new CheckerError(expr.keyword, `When branches must return compatible types. Got ${this.typeToString(firstType)} and ${this.typeToString(entryTypes[i])}.`);
             }
         }
 
@@ -522,7 +607,7 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
             if (this.expectedType instanceof ArrayType) {
                 return this.expectedType;
             }
-             throw new CheckerError(new Token(TokenType.LEFT_BRACKET, "[", null, 0, 0), "Cannot infer type of empty array. Please provide an explicit type.");
+            throw new CheckerError(new Token(TokenType.LEFT_BRACKET, "[", null, 0, 0), "Cannot infer type of empty array. Please provide an explicit type.");
         }
 
         const firstType = this.evaluate(expr.elements[0]);
@@ -530,7 +615,7 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         for (let i = 1; i < expr.elements.length; i++) {
             const elementType = this.evaluate(expr.elements[i]);
             if (!this.isTypeCompatible(firstType, elementType)) {
-                 throw new CheckerError(new Token(TokenType.LEFT_BRACKET, "[", null, 0, 0), `Array elements must be of the same type. Expected ${this.typeToString(firstType)}, but got ${this.typeToString(elementType)}.`);
+                throw new CheckerError(new Token(TokenType.LEFT_BRACKET, "[", null, 0, 0), `Array elements must be of the same type. Expected ${this.typeToString(firstType)}, but got ${this.typeToString(elementType)}.`);
             }
         }
 
@@ -544,7 +629,7 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         const isI32 = indexType instanceof NamedType && indexType.name.lexeme === "i32";
 
         if (!isI32) {
-             throw new CheckerError(expr.bracket, `Index must be an integer.`);
+            throw new CheckerError(expr.bracket, `Index must be an integer.`);
         }
 
         if (objectType instanceof ArrayType) {
@@ -562,12 +647,12 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         const isI32 = indexType instanceof NamedType && indexType.name.lexeme === "i32";
 
         if (!isI32) {
-             throw new CheckerError(expr.bracket, `Index must be an integer.`);
+            throw new CheckerError(expr.bracket, `Index must be an integer.`);
         }
 
         if (objectType instanceof ArrayType) {
-             this.checkType(objectType.elementType, valueType, expr.bracket);
-             return objectType.elementType;
+            this.checkType(objectType.elementType, valueType, expr.bracket);
+            return objectType.elementType;
         }
 
         throw new CheckerError(expr.bracket, `Type ${this.typeToString(objectType)} is not an array.`);
