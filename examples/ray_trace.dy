@@ -8,7 +8,7 @@ value Vector(
     operator fun `-`(other: Vector) = Vector(x = x - other.x, y = y - other.y, z = z - other.z);
     operator fun dot(other: Vector) = x * other.x + y * other.y + z * other.z;
     fun magnitude() = (this dot this).sqrt();
-    fun normalize() = this * (1.0 / magnitude())
+    fun normalize() = this * (1.0 / magnitude());
 }
 
 value Ray(
@@ -42,7 +42,7 @@ value Color(
 ) {
     operator fun `*`(scale: f64) = Color(r * scale, g * scale, b * scale);
     operator fun `+`(other: Color) = Color(r + other.r, g + other.g, b + other.b);
-    function intensity() = r + g + b;
+    fun intensity() = r + g + b;
 }
 
 val white = Color(r = 1.0, g = 1.0, b = 1.0);
@@ -50,18 +50,18 @@ val red = Color(r = 1.0, g = 0.0, b = 0.0);
 val green = Color(r = 0.0, g = 1.0, b = 0.0);
 val blue = Color(r = 0.0, g = 0.0, b = 1.0);
 
-val Sphere(
+value Sphere(
     val center: Vector,
     val radius: f64,
     val color: Color
 ) {
-    fun normalize(vector: Vector) = (center - vector).normalize()
+    fun normalize(vector: Vector) = (center - vector).normalize();
 }
 
 value Light(
     val position: Vector,
     color: Color
-)
+) { }
 
 fun spheres(t: f64) = [
     Sphere(

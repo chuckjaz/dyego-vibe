@@ -2,7 +2,7 @@ import {
     Expr, Stmt, TypeNode, ExprVisitor, StmtVisitor,
     LiteralExpr, VariableExpr, AssignExpr, BinaryExpr, CallExpr, GetExpr, GroupingExpr, LogicalExpr, SetExpr, ThisExpr, UnaryExpr, BlockExpr, IfExpr, WhenExpr, LambdaExpr, ArrayLiteralExpr, IndexGetExpr, IndexSetExpr, PropagateExpr, CastExpr,
     ExpressionStmt, FunctionStmt, ReturnStmt, VarStmt, WhileStmt, ForStmt, BreakStmt, ContinueStmt, ValueStmt, UseStmt, TraitStmt,
-    NamedType, UnionType, ArrayType, OptionalType, GenericType
+    NamedType, UnionType, ArrayType, GenericType
 } from "./ast";
 import { TokenType, Token } from "./token";
 
@@ -514,7 +514,7 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
     visitSetExpr(expr: SetExpr): TypeNode { return this.getUnitType(); }
     visitThisExpr(expr: ThisExpr): TypeNode {
         const type = this.environment.lookup("this");
-        if (type instanceof NamedType || type instanceof UnionType || type instanceof ArrayType || type instanceof OptionalType || type instanceof GenericType) {
+        if (type instanceof NamedType || type instanceof UnionType || type instanceof ArrayType || type instanceof GenericType) {
             return type as TypeNode;
         }
         throw new CheckerError(expr.keyword, "Invalid use of 'this'.");

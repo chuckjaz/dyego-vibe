@@ -43,7 +43,7 @@ export interface TypeVisitor<R> {
   visitNamedType(type: NamedType): R;
   visitUnionType(type: UnionType): R;
   visitArrayType(type: ArrayType): R;
-  visitOptionalType(type: OptionalType): R;
+
   visitGenericType(type: GenericType): R;
 }
 
@@ -622,18 +622,7 @@ export class ArrayType extends TypeNode {
   }
 }
 
-export class OptionalType extends TypeNode {
-  innerType: TypeNode;
 
-  constructor(innerType: TypeNode) {
-    super();
-    this.innerType = innerType;
-  }
-
-  accept<R>(visitor: TypeVisitor<R>): R {
-    return visitor.visitOptionalType(this);
-  }
-}
 
 export class GenericType extends TypeNode {
   // Used for when a type is just a generic parameter T?

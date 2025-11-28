@@ -5,7 +5,7 @@ import {
   Expr, Stmt, ExprVisitor, StmtVisitor, TypeVisitor,
   ExpressionStmt, FunctionStmt, ReturnStmt, VarStmt, WhileStmt, ForStmt,
   BreakStmt, ContinueStmt, ValueStmt, UseStmt, TraitStmt,
-  TypeNode, NamedType, UnionType, ArrayType, OptionalType, GenericType
+  TypeNode, NamedType, UnionType, ArrayType, GenericType
 } from "./ast";
 
 export class AstPrinter implements ExprVisitor<string>, StmtVisitor<string>, TypeVisitor<string> {
@@ -206,9 +206,7 @@ export class AstPrinter implements ExprVisitor<string>, StmtVisitor<string>, Typ
     return `${type.elementType.accept(this)}[]`;
   }
 
-  visitOptionalType(type: OptionalType): string {
-    return `${type.innerType.accept(this)}?`;
-  }
+
 
   visitGenericType(type: GenericType): string {
     return type.name.lexeme;
