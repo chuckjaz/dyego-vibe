@@ -711,6 +711,10 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
             this.environment = previousEnv;
         }
 
+        if (!subjectType && !expr.elseBranch) {
+            throw new CheckerError(expr.keyword, "'when' expression without subject must have an 'else' branch.");
+        }
+
         if (expr.elseBranch) {
             entryTypes.push(this.evaluate(expr.elseBranch));
 
@@ -741,6 +745,8 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
                     if (remaining) {
                         throw new CheckerError(expr.keyword, "When expression is not exhaustive.");
                     }
+                } else {
+                    throw new CheckerError(expr.keyword, "'when' expression must be exhaustive.");
                 }
             }
         }

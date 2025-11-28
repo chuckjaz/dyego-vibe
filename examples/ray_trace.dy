@@ -11,6 +11,14 @@ value Vector(
     fun normalize() = this * (1.0 / magnitude());
 }
 
+value Sphere(
+    val center: Vector,
+    val radius: f64,
+    val color: Color
+) {
+    fun normalize(vector: Vector) = (center - vector).normalize();
+}
+
 value Ray(
     origin: Vector,
     direction: Vector
@@ -27,7 +35,7 @@ value Ray(
             return null;
         }
         val thc = (r2 - d2).sqrt();
-        val t0 = tca - tch;
+        val t0 = tca - thc;
         if (t0 > 1000.0) {
             return null;
         }
@@ -50,18 +58,15 @@ val red = Color(r = 1.0, g = 0.0, b = 0.0);
 val green = Color(r = 0.0, g = 1.0, b = 0.0);
 val blue = Color(r = 0.0, g = 0.0, b = 1.0);
 
-value Sphere(
-    val center: Vector,
-    val radius: f64,
-    val color: Color
-) {
-    fun normalize(vector: Vector) = (center - vector).normalize();
-}
-
 value Light(
     val position: Vector,
     color: Color
 ) { }
+
+val light1 = Light(position = Vector(x = 0.7, y = -1.0, z = 1.7), color = white);
+val lut: String[] = [".", "-", "+", "X", "M"];
+val w: i32 = 80;
+val h: i32 = 40;
 
 fun spheres(t: f64) = [
     Sphere(
@@ -125,22 +130,23 @@ fun render(t: f64, w: i32, h: i32) {
 
 value Hit(val sphere: Sphere, val tval: f64) { }
 
-fun pixel(ray: Ray, sphere: Sphere, tval: f64): String {
-    val pi: Vector = ray.origin + ray.direction * tval;
-    val color = diffusedShading(p1, sphere, light);
-    val intensity = color.intensity() / 3.0;
-    return lut[(intensity * (let.length() as f64)).floor()];
-}
-
 fun f64.clamp(min: f64, max: f64) =
     when {
         this < min -> { min }
         this > max -> { max }
         else -> this
-    }
+    };
 
-fun diffuseShading(p1: Vector, sphere: Sphere, light: Light): Color {
-    val n: Vector = sphere.normalize();
-    val lam: Double = ((light.position - p1).normalize() dot n).clamp(0.0, 1.0);
+fun diffusedShading(p1: Vector, sphere: Sphere, light: Light): Color {
+    val n: Vector = sphere.normalize(p1);
+    val lam: f64 = ((light.position - p1).normalize() dot n).clamp(0.0, 1.0);
     return light.color * lam * 0.5  + sphere.color * 0.3;
 }
+
+fun pixel(ray: Ray, sphere: Sphere, tval: f64): String {
+    val p1: Vector = ray.origin + ray.direction * tval;
+    val color = diffusedShading(p1, sphere, light1);
+    val intensity = color.intensity() / 3.0;
+    return lut[(intensity * (let.length() as f64)).floor()];
+}
+

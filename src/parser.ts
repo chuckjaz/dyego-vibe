@@ -631,12 +631,13 @@ export class Parser {
 
   private whenExpression(): Expr {
     const keyword = this.previous();
-    this.consume(TokenType.LEFT_PAREN, "Expect '(' after 'when'.");
     let subject: Expr | null = null;
-    if (!this.check(TokenType.RIGHT_PAREN)) {
-      subject = this.expression();
+    if (this.match(TokenType.LEFT_PAREN)) {
+      if (!this.check(TokenType.RIGHT_PAREN)) {
+        subject = this.expression();
+      }
+      this.consume(TokenType.RIGHT_PAREN, "Expect ')' after when subject.");
     }
-    this.consume(TokenType.RIGHT_PAREN, "Expect ')' after when subject.");
     this.consume(TokenType.LEFT_BRACE, "Expect '{' after when.");
 
     const entries: WhenEntry[] = [];

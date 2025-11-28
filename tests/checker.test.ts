@@ -543,3 +543,51 @@ describe('Extension Methods', () => {
         expect(errorsFail[0].message).toContain("Undefined property or method 'plusOne'");
     });
 });
+
+describe('Boolean When Expression', () => {
+    test('parses boolean when expression', () => {
+        const source = `
+      val x = when {
+        true -> 1,
+        else -> 2
+      };
+    `;
+        const errors = check(source);
+        expect(errors.length).toBe(0);
+    });
+
+    test('boolean when requires else', () => {
+        const source = `
+      val x = when {
+        true -> 1
+      };
+    `;
+        const errors = check(source);
+        expect(errors.length).toBeGreaterThan(0);
+        expect(errors[0].message).toContain("'when' expression without subject must have an 'else' branch");
+    });
+
+    test('boolean when conditions must be boolean', () => {
+        const source = `
+      val x = when {
+        1 -> 1,
+        else -> 2
+      };
+    `;
+        const errors = check(source);
+        expect(errors.length).toBeGreaterThan(0);
+        expect(errors[0].message).toContain("Expected type Boolean, but got i32");
+    });
+
+    test('boolean when branches must be compatible', () => {
+        const source = `
+      val x = when {
+        true -> 1,
+        else -> "string"
+      };
+    `;
+        const errors = check(source);
+        expect(errors.length).toBeGreaterThan(0);
+        expect(errors[0].message).toContain("When branches must return compatible types");
+    });
+});
