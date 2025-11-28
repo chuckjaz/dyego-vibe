@@ -8,10 +8,21 @@ import {
   UnionType, ArrayType, OptionalType, GenericType, WhenEntry
 } from "./ast";
 
+export class ParserError extends Error {
+    token: Token;
+    message: string;
+
+    constructor(token: Token, message: string) {
+        super(message);
+        this.token = token;
+        this.message = message;
+    }
+}
+
 export class Parser {
   private readonly tokens: Token[];
   private current = 0;
-  private errors: Error[] = [];
+  private errors: ParserError[] = [];
 
   constructor(tokens: Token[]) {
     this.tokens = tokens;
@@ -28,7 +39,7 @@ export class Parser {
     return statements;
   }
 
-  getErrors(): Error[] {
+  getErrors(): ParserError[] {
       return this.errors;
   }
 
@@ -43,7 +54,16 @@ export class Parser {
 
       return this.statement();
     } catch (error: any) {
-      this.errors.push(error);
+      if (error instanceof ParserError) {
+          this.errors.push(error);
+      } else {
+          // Wrap unknown errors or rethrow? For now, assume all parsing errors are ParserError
+          // If it's something else, it might be a bug in the parser code.
+          // But to be safe let's push it if it has a message, or create a generic one.
+          // However, synchronizing requires us to recover.
+          // Let's assume we only catch ParserErrors thrown by this.error()
+          this.errors.push(new ParserError(this.peek(), error.message));
+      }
       this.synchronize();
       return null;
     }
@@ -169,7 +189,7 @@ export class Parser {
                    this.error(this.previous(), "Expect 'fun' after 'var' in value type body (for mutating method).");
               }
           } else {
-              throw this.error(this.peek(), "Expect method declaration in value type body.");
+              throw this.error(this.peek(), `Expect method declaration in value type body, received '${this.peek().lexeme}'.`);
           }
       }
       this.consume(TokenType.RIGHT_BRACE, "Expect '}' after value type body.");
@@ -763,8 +783,8 @@ export class Parser {
     return this.tokens[this.current - 1];
   }
 
-  private error(token: Token, message: string): Error {
-    return new Error(`[line ${token.line}] Error at '${token.lexeme}': ${message}`);
+  private error(token: Token, message: string): ParserError {
+    return new ParserError(token, message);
   }
 
   private synchronize(): void {

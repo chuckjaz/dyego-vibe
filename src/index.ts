@@ -27,7 +27,8 @@ function main() {
         const parserErrors = parser.getErrors();
         if (parserErrors.length > 0) {
             for (const error of parserErrors) {
-                console.error(error.message);
+                // Error <filename>:<line>:<column>: <message>
+                console.error(`Error ${filename}:${error.token.line}:${error.token.column}: ${error.message}`);
             }
             process.exit(1);
         }
@@ -38,7 +39,7 @@ function main() {
         const errors = checker.getErrors();
         if (errors.length > 0) {
             for (const error of errors) {
-                console.error(`[line ${error.token.line}] Error at '${error.token.lexeme}': ${error.message}`);
+                console.error(`Error ${filename}:${error.token.line}:${error.token.column}: ${error.message}`);
             }
             process.exit(1);
         }
