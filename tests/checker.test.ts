@@ -11,15 +11,7 @@ function check(source: string) {
 
     const parserErrors = parser.getErrors();
     if (parserErrors.length > 0) {
-        // If parser failed, we should probably report these as errors too
-        // But for Checker tests, we usually expect valid syntax.
-        // If syntax is invalid, Checker might not run fully.
-        // We wrap Parser Error into CheckerError-like object or just throw/fail test?
-        // Let's return them as CheckerErrors for simplicity in testing.
-        // Warning: Parser Error is generic Error, not CheckerError.
-        // We map them.
         return parserErrors.map(e => {
-            // Dummy token for error
              return new CheckerError({ lexeme: "", line: 0, column: 0 } as any, e.message);
         });
     }
@@ -128,13 +120,6 @@ describe('Type Checker', () => {
                 x // Implicit return of the block
             }
         `;
-        // Note: My parser/block implementation might treat `x` as an expression statement.
-        // If parsing is correct for block expressions, this should work if I implemented logic correctly.
-        // Wait, my parser might parse `x` as `ExpressionStmt(VariableExpr(x))`.
-        // And `visitBlockExpr` should return the type of the last statement if it's an expression statement.
-
-        // However, `FunctionStmt` body is an Expr. If it is a `BlockExpr`, `evaluate` calls `visitBlockExpr`.
-
         const errors = check(source);
         expect(errors.length).toBe(0);
     });
@@ -341,5 +326,22 @@ describe('Type Checker', () => {
         const errors = check(source);
         expect(errors.length).toBeGreaterThan(0);
         expect(errors[0].message).toContain("Index must be an integer");
+    });
+
+    test('Empty array literal requires explicit type', () => {
+        const source = `
+            val x = [];
+        `;
+        const errors = check(source);
+        expect(errors.length).toBeGreaterThan(0);
+        expect(errors[0].message).toContain("Cannot infer type of empty array");
+    });
+
+    test('Empty array literal with explicit type', () => {
+        const source = `
+            val x: i32[] = [];
+        `;
+        const errors = check(source);
+        expect(errors.length).toBe(0);
     });
 });

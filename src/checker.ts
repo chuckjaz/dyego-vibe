@@ -75,6 +75,7 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
     private currentFunction: FunctionStmt | null = null;
     private currentValue: ValueStmt | null = null;
     private errors: CheckerError[] = [];
+    private expectedType: TypeNode | null = null;
 
     check(statements: Stmt[]) {
         try {
@@ -105,10 +106,6 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
     }
 
     private isTypeCompatible(target: TypeNode, source: TypeNode): boolean {
-        // Handle Dynamic type (acts as Any)
-        if (target instanceof NamedType && target.name.lexeme === "Dynamic") return true;
-        if (source instanceof NamedType && source.name.lexeme === "Dynamic") return true;
-
         if (target instanceof NamedType && source instanceof NamedType) {
             return target.name.lexeme === source.name.lexeme;
         }
@@ -198,7 +195,14 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
     visitVarStmt(stmt: VarStmt): void {
         let initializerType: TypeNode | null = null;
         if (stmt.initializer) {
-            initializerType = this.evaluate(stmt.initializer);
+            if (stmt.type) {
+                const previousExpected = this.expectedType;
+                this.expectedType = stmt.type;
+                initializerType = this.evaluate(stmt.initializer);
+                this.expectedType = previousExpected;
+            } else {
+                initializerType = this.evaluate(stmt.initializer);
+            }
         }
 
         if (stmt.type) {
@@ -276,7 +280,7 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         } else if (expr.value === null) {
              return new NamedType(new Token(TokenType.IDENTIFIER, "Null", null, 0, 0));
         }
-        return new NamedType(new Token(TokenType.IDENTIFIER, "Dynamic", null, 0, 0));
+        throw new CheckerError(new Token(TokenType.IDENTIFIER, "Unknown literal", null, 0, 0), "Unknown literal type.");
     }
 
     visitVariableExpr(expr: VariableExpr): TypeNode {
@@ -515,7 +519,10 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
 
     visitArrayLiteralExpr(expr: ArrayLiteralExpr): TypeNode {
         if (expr.elements.length === 0) {
-             return new ArrayType(new NamedType(new Token(TokenType.IDENTIFIER, "Dynamic", null, 0, 0)));
+            if (this.expectedType instanceof ArrayType) {
+                return this.expectedType;
+            }
+             throw new CheckerError(new Token(TokenType.LEFT_BRACKET, "[", null, 0, 0), "Cannot infer type of empty array. Please provide an explicit type.");
         }
 
         const firstType = this.evaluate(expr.elements[0]);
@@ -535,18 +542,13 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         const indexType = this.evaluate(expr.index);
 
         const isI32 = indexType instanceof NamedType && indexType.name.lexeme === "i32";
-        const isDynamic = indexType instanceof NamedType && indexType.name.lexeme === "Dynamic";
 
-        if (!isI32 && !isDynamic) {
+        if (!isI32) {
              throw new CheckerError(expr.bracket, `Index must be an integer.`);
         }
 
         if (objectType instanceof ArrayType) {
             return objectType.elementType;
-        }
-
-        if (objectType instanceof NamedType && objectType.name.lexeme === "Dynamic") {
-            return new NamedType(new Token(TokenType.IDENTIFIER, "Dynamic", null, 0, 0));
         }
 
         throw new CheckerError(expr.bracket, `Type ${this.typeToString(objectType)} is not an array.`);
@@ -558,19 +560,14 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         const valueType = this.evaluate(expr.value);
 
         const isI32 = indexType instanceof NamedType && indexType.name.lexeme === "i32";
-        const isDynamic = indexType instanceof NamedType && indexType.name.lexeme === "Dynamic";
 
-        if (!isI32 && !isDynamic) {
+        if (!isI32) {
              throw new CheckerError(expr.bracket, `Index must be an integer.`);
         }
 
         if (objectType instanceof ArrayType) {
              this.checkType(objectType.elementType, valueType, expr.bracket);
              return objectType.elementType;
-        }
-
-        if (objectType instanceof NamedType && objectType.name.lexeme === "Dynamic") {
-            return valueType;
         }
 
         throw new CheckerError(expr.bracket, `Type ${this.typeToString(objectType)} is not an array.`);
