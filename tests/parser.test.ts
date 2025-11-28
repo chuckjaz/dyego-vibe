@@ -4,7 +4,7 @@ import { Parser } from '../src/parser';
 import {
     VarStmt, LiteralExpr, BinaryExpr, FunctionStmt, ValueStmt,
     CallExpr, LambdaExpr, IfExpr, WhenExpr, BlockExpr, NamedType,
-    VariableExpr, TraitStmt
+    VariableExpr, TraitStmt, ReturnStmt
 } from '../src/ast';
 
 describe('Parser', () => {
@@ -116,6 +116,25 @@ describe('Parser', () => {
       const errors = parser.getErrors();
       expect(errors.length).toBeGreaterThan(0);
       expect(errors[0].message).toContain("Expect ')' after arguments.");
+  });
+
+  test('parses single expression function using =', () => {
+    const stmts = parse('fun add(a: f64, b: f64) = a + b;');
+    expect(stmts.length).toBe(1);
+    expect(stmts[0]).toBeInstanceOf(FunctionStmt);
+
+    const func = stmts[0] as FunctionStmt;
+    expect(func.name.lexeme).toBe('add');
+
+    // Check body structure
+    expect(func.body).toBeInstanceOf(BlockExpr);
+    const body = func.body as BlockExpr;
+
+    expect(body.statements.length).toBe(1);
+    expect(body.statements[0]).toBeInstanceOf(ReturnStmt);
+
+    const ret = body.statements[0] as ReturnStmt;
+    expect(ret.value).toBeInstanceOf(BinaryExpr);
   });
 
 });
