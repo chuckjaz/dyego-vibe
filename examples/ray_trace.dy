@@ -1,0 +1,146 @@
+value Vector(
+    val x: f64,
+    val y: f64,
+    val z: f64
+) {
+    operator fun `+`(other: Vector) = Vector(x = x + other.x, y = y + other.y, z = z + other.z);
+    operator fun `*`(scale: f64) = Vector(x = x * scale, y = y * scale, z = z * scale);
+    operator fun `-`(other: Vector) = Vector(x = x - other.x, y = y - other.y, z = z - other.z);
+    operator fun dot(other: Vector) = x * other.x + y * other.y + z * other.z;
+    fun magnitude() = (this dot this).sqrt();
+    fun normalize() = this * (1.0 / magnitude())
+}
+
+value Ray(
+    origin: Vector,
+    direction: Vector
+) {
+    fun intersectWith(sphere: Sphere): f64? {
+        val l = sphere.center - origin;
+        val tca = l dot direction;
+        if (tca < 0.0) {
+            return null;
+        }
+        val d2 = (l dot l) - tca * tca;
+        val r2 = sphere.radius * sphere.radius;
+        if (d2 > r2) {
+            return null;
+        }
+        val thc = (r2 - d2).sqrt();
+        val t0 = tca - tch;
+        if (t0 > 1000.0) {
+            return null;
+        }
+        return t0;
+    }
+}
+
+value Color(
+    val r: f64,
+    val g: f64,
+    val b: f64
+) {
+    operator fun `*`(scale: f64) = Color(r * scale, g * scale, b * scale);
+    operator fun `+`(other: Color) = Color(r + other.r, g + other.g, b + other.b);
+    function intensity() = r + g + b;
+}
+
+val white = Color(r = 1.0, g = 1.0, b = 1.0);
+val red = Color(r = 1.0, g = 0.0, b = 0.0);
+val green = Color(r = 0.0, g = 1.0, b = 0.0);
+val blue = Color(r = 0.0, g = 0.0, b = 1.0);
+
+val Sphere(
+    val center: Vector,
+    val radius: f64,
+    val color: Color
+) {
+    fun normalize(vector: Vector) = (center - vector).normalize()
+}
+
+value Light(
+    val position: Vector,
+    color: Color
+)
+
+fun spheres(t: f64) = [
+    Sphere(
+        center = Vector(x = -1.0, y = 1.0 - t/10.0, z = 3.0),
+        radius = 0.3,
+        color = red
+    ),
+    Sphere(
+        center = Vector(x = 0.0, y = 1.0 - t/10.0, z = 3.0 - t/4.0),
+        radius = 0.8,
+        color = green
+    ),
+    Sphere(
+        center = Vector(x = 1.0, y = 0.0, z = 1.5),
+        radius = 0.8,
+        color = blue
+    )
+];
+
+fun render(t: f64, w: i32, h: i32) {
+    var y = 0;
+    val fw = w as f64;
+    val fh = h as f64;
+    val scene = spheres(t);
+    while (y < h) {
+        val fy = y as f64;
+        var x = 0;
+        while (x < w) {
+            val fx = x as f64;
+            val ray = Ray(
+                origin = Vector(x = 1.5, y = 1.7, z = -5.5),
+                direction = Vector(x = (fx - fw)/3.0/fw, y = (fy - fh)/3.0/fh, z = 1.0)
+            ).normalize();
+
+            var i = 0;
+            var hit: Hit? = null;
+            while (i < scene.length) {
+                val sphere = scene[i];
+                val tval = sphere.intersectWith(ray);
+                when (tval) {
+                    is f64 -> {
+                        hit = Hit(sphere, tval);
+                    }
+                }
+            }
+
+            when (hit) {
+                is Hit -> {
+                    print(pixel(ray, hit));
+                }
+                else -> {
+                    print(" ")
+                }
+            }
+            x = x + 1;
+        }
+        print("\n");
+        y = y + 1;
+    }
+}
+
+value Hit(val sphere: Sphere, val tval: f64)
+
+fun pixel(ray: Ray, sphere: Sphere, tval: f64): String {
+    val pi: Vector = ray.origin + ray.direction * tval;
+    val color = diffusedShading(p1, sphere, light);
+    val intensity = color.intensity() / 3.0;
+    return lut[(intensity * (let.length() as f64)).floor()];
+}
+
+fun f64.clamp(min: f64, max: f64) =
+    when {
+        this < min -> { min }
+        this > max -> { max }
+        else -> this
+    }
+
+fun diffuseShading(p1: Vector, sphere: Sphere, light: Light): Color {
+    val n: Vector = sphere.normalize()
+    val lam: Double = ((light.position - p1).normalize() dot n).clamp(0.0, 1.0)
+    return light.color * lam * 0.5  + sphere.color * 0.3
+}

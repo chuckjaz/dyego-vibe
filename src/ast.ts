@@ -40,11 +40,11 @@ export interface StmtVisitor<R> {
 }
 
 export interface TypeVisitor<R> {
-    visitNamedType(type: NamedType): R;
-    visitUnionType(type: UnionType): R;
-    visitArrayType(type: ArrayType): R;
-    visitOptionalType(type: OptionalType): R;
-    visitGenericType(type: GenericType): R;
+  visitNamedType(type: NamedType): R;
+  visitUnionType(type: UnionType): R;
+  visitArrayType(type: ArrayType): R;
+  visitOptionalType(type: OptionalType): R;
+  visitGenericType(type: GenericType): R;
 }
 
 // --- Base Classes ---
@@ -59,7 +59,7 @@ export abstract class Stmt {
 }
 
 export abstract class TypeNode {
-    abstract accept<R>(visitor: TypeVisitor<R>): R;
+  abstract accept<R>(visitor: TypeVisitor<R>): R;
 }
 
 // --- Expression Nodes ---
@@ -266,13 +266,13 @@ export class IfExpr extends Expr {
 }
 
 export class WhenEntry {
-    conditions: Expr[]; // if empty, it's 'else'
-    body: Expr;
+  conditions: Expr[]; // if empty, it's 'else'
+  body: Expr;
 
-    constructor(conditions: Expr[], body: Expr) {
-        this.conditions = conditions;
-        this.body = body;
-    }
+  constructor(conditions: Expr[], body: Expr) {
+    this.conditions = conditions;
+    this.body = body;
+  }
 }
 
 export class WhenExpr extends Expr {
@@ -295,99 +295,99 @@ export class WhenExpr extends Expr {
 }
 
 export class LambdaExpr extends Expr {
-    params: { name: Token, type: TypeNode | null }[];
-    body: Expr; // Can be BlockExpr
+  params: { name: Token, type: TypeNode | null }[];
+  body: Expr; // Can be BlockExpr
 
-    constructor(params: { name: Token, type: TypeNode | null }[], body: Expr) {
-        super();
-        this.params = params;
-        this.body = body;
-    }
+  constructor(params: { name: Token, type: TypeNode | null }[], body: Expr) {
+    super();
+    this.params = params;
+    this.body = body;
+  }
 
-    accept<R>(visitor: ExprVisitor<R>): R {
-        return visitor.visitLambdaExpr(this);
-    }
+  accept<R>(visitor: ExprVisitor<R>): R {
+    return visitor.visitLambdaExpr(this);
+  }
 }
 
 export class ArrayLiteralExpr extends Expr {
-    elements: Expr[];
+  elements: Expr[];
 
-    constructor(elements: Expr[]) {
-        super();
-        this.elements = elements;
-    }
+  constructor(elements: Expr[]) {
+    super();
+    this.elements = elements;
+  }
 
-    accept<R>(visitor: ExprVisitor<R>): R {
-        return visitor.visitArrayLiteralExpr(this);
-    }
+  accept<R>(visitor: ExprVisitor<R>): R {
+    return visitor.visitArrayLiteralExpr(this);
+  }
 }
 
 export class IndexGetExpr extends Expr {
-    object: Expr;
-    index: Expr;
-    bracket: Token;
+  object: Expr;
+  index: Expr;
+  bracket: Token;
 
-    constructor(object: Expr, index: Expr, bracket: Token) {
-        super();
-        this.object = object;
-        this.index = index;
-        this.bracket = bracket;
-    }
+  constructor(object: Expr, index: Expr, bracket: Token) {
+    super();
+    this.object = object;
+    this.index = index;
+    this.bracket = bracket;
+  }
 
-    accept<R>(visitor: ExprVisitor<R>): R {
-        return visitor.visitIndexGetExpr(this);
-    }
+  accept<R>(visitor: ExprVisitor<R>): R {
+    return visitor.visitIndexGetExpr(this);
+  }
 }
 
 export class IndexSetExpr extends Expr {
-    object: Expr;
-    index: Expr;
-    value: Expr;
-    bracket: Token;
+  object: Expr;
+  index: Expr;
+  value: Expr;
+  bracket: Token;
 
-    constructor(object: Expr, index: Expr, value: Expr, bracket: Token) {
-        super();
-        this.object = object;
-        this.index = index;
-        this.value = value;
-        this.bracket = bracket;
-    }
+  constructor(object: Expr, index: Expr, value: Expr, bracket: Token) {
+    super();
+    this.object = object;
+    this.index = index;
+    this.value = value;
+    this.bracket = bracket;
+  }
 
-    accept<R>(visitor: ExprVisitor<R>): R {
-        return visitor.visitIndexSetExpr(this);
-    }
+  accept<R>(visitor: ExprVisitor<R>): R {
+    return visitor.visitIndexSetExpr(this);
+  }
 }
 
 export class PropagateExpr extends Expr {
-    expression: Expr;
-    operator: Token; // ?
+  expression: Expr;
+  operator: Token; // ?
 
-    constructor(expression: Expr, operator: Token) {
-        super();
-        this.expression = expression;
-        this.operator = operator;
-    }
+  constructor(expression: Expr, operator: Token) {
+    super();
+    this.expression = expression;
+    this.operator = operator;
+  }
 
-    accept<R>(visitor: ExprVisitor<R>): R {
-        return visitor.visitPropagateExpr(this);
-    }
+  accept<R>(visitor: ExprVisitor<R>): R {
+    return visitor.visitPropagateExpr(this);
+  }
 }
 
 export class CastExpr extends Expr {
-    expression: Expr;
-    targetType: TypeNode;
-    operator: Token; // as
+  expression: Expr;
+  targetType: TypeNode;
+  operator: Token; // as
 
-    constructor(expression: Expr, targetType: TypeNode, operator: Token) {
-        super();
-        this.expression = expression;
-        this.targetType = targetType;
-        this.operator = operator;
-    }
+  constructor(expression: Expr, targetType: TypeNode, operator: Token) {
+    super();
+    this.expression = expression;
+    this.targetType = targetType;
+    this.operator = operator;
+  }
 
-    accept<R>(visitor: ExprVisitor<R>): R {
-        return visitor.visitCastExpr(this);
-    }
+  accept<R>(visitor: ExprVisitor<R>): R {
+    return visitor.visitCastExpr(this);
+  }
 }
 
 
@@ -413,8 +413,9 @@ export class FunctionStmt extends Stmt {
   body: Expr; // Usually BlockExpr, but could be expression body? GEMINI.md says { ... }
   generics: Token[]; // <T>
   isMutating: boolean; // var fun
+  isOperator: boolean;
 
-  constructor(name: Token, params: { name: Token, type: TypeNode }[], returnType: TypeNode | null, body: Expr, generics: Token[], isMutating: boolean) {
+  constructor(name: Token, params: { name: Token, type: TypeNode }[], returnType: TypeNode | null, body: Expr, generics: Token[], isMutating: boolean, isOperator: boolean = false) {
     super();
     this.name = name;
     this.params = params;
@@ -422,6 +423,7 @@ export class FunctionStmt extends Stmt {
     this.body = body;
     this.generics = generics;
     this.isMutating = isMutating;
+    this.isOperator = isOperator;
   }
 
   accept<R>(visitor: StmtVisitor<R>): R {
@@ -526,128 +528,128 @@ export class ContinueStmt extends Stmt {
 }
 
 export class ValueStmt extends Stmt {
-    name: Token;
-    fields: { name: Token, type: TypeNode, isMutable: boolean }[];
-    methods: FunctionStmt[];
-    generics: Token[];
+  name: Token;
+  fields: { name: Token, type: TypeNode, isMutable: boolean }[];
+  methods: FunctionStmt[];
+  generics: Token[];
 
-    constructor(name: Token, fields: { name: Token, type: TypeNode, isMutable: boolean }[], methods: FunctionStmt[], generics: Token[]) {
-        super();
-        this.name = name;
-        this.fields = fields;
-        this.methods = methods;
-        this.generics = generics;
-    }
+  constructor(name: Token, fields: { name: Token, type: TypeNode, isMutable: boolean }[], methods: FunctionStmt[], generics: Token[]) {
+    super();
+    this.name = name;
+    this.fields = fields;
+    this.methods = methods;
+    this.generics = generics;
+  }
 
-    accept<R>(visitor: StmtVisitor<R>): R {
-        return visitor.visitValueStmt(this);
-    }
+  accept<R>(visitor: StmtVisitor<R>): R {
+    return visitor.visitValueStmt(this);
+  }
 }
 
 export class UseStmt extends Stmt {
-    path: Token[]; // path segments
-    items: Token[]; // {item1, item2}
-    isTrait: boolean;
+  path: Token[]; // path segments
+  items: Token[]; // {item1, item2}
+  isTrait: boolean;
 
-    constructor(path: Token[], items: Token[], isTrait: boolean) {
-        super();
-        this.path = path;
-        this.items = items;
-        this.isTrait = isTrait;
-    }
+  constructor(path: Token[], items: Token[], isTrait: boolean) {
+    super();
+    this.path = path;
+    this.items = items;
+    this.isTrait = isTrait;
+  }
 
-    accept<R>(visitor: StmtVisitor<R>): R {
-        return visitor.visitUseStmt(this);
-    }
+  accept<R>(visitor: StmtVisitor<R>): R {
+    return visitor.visitUseStmt(this);
+  }
 }
 
 export class TraitStmt extends Stmt {
-    name: Token;
-    methods: FunctionStmt[]; // Trait methods (usually no body or default body)
+  name: Token;
+  methods: FunctionStmt[]; // Trait methods (usually no body or default body)
 
-    constructor(name: Token, methods: FunctionStmt[]) {
-        super();
-        this.name = name;
-        this.methods = methods;
-    }
+  constructor(name: Token, methods: FunctionStmt[]) {
+    super();
+    this.name = name;
+    this.methods = methods;
+  }
 
-    accept<R>(visitor: StmtVisitor<R>): R {
-        return visitor.visitTraitStmt(this);
-    }
+  accept<R>(visitor: StmtVisitor<R>): R {
+    return visitor.visitTraitStmt(this);
+  }
 }
 
 
 // --- Type Nodes ---
 
 export class NamedType extends TypeNode {
-    name: Token;
-    generics: TypeNode[];
+  name: Token;
+  generics: TypeNode[];
 
-    constructor(name: Token, generics: TypeNode[] = []) {
-        super();
-        this.name = name;
-        this.generics = generics;
-    }
+  constructor(name: Token, generics: TypeNode[] = []) {
+    super();
+    this.name = name;
+    this.generics = generics;
+  }
 
-    accept<R>(visitor: TypeVisitor<R>): R {
-        return visitor.visitNamedType(this);
-    }
+  accept<R>(visitor: TypeVisitor<R>): R {
+    return visitor.visitNamedType(this);
+  }
 }
 
 export class UnionType extends TypeNode {
-    types: TypeNode[];
+  types: TypeNode[];
 
-    constructor(types: TypeNode[]) {
-        super();
-        this.types = types;
-    }
+  constructor(types: TypeNode[]) {
+    super();
+    this.types = types;
+  }
 
-    accept<R>(visitor: TypeVisitor<R>): R {
-        return visitor.visitUnionType(this);
-    }
+  accept<R>(visitor: TypeVisitor<R>): R {
+    return visitor.visitUnionType(this);
+  }
 }
 
 export class ArrayType extends TypeNode {
-    elementType: TypeNode;
+  elementType: TypeNode;
 
-    constructor(elementType: TypeNode) {
-        super();
-        this.elementType = elementType;
-    }
+  constructor(elementType: TypeNode) {
+    super();
+    this.elementType = elementType;
+  }
 
-    accept<R>(visitor: TypeVisitor<R>): R {
-        return visitor.visitArrayType(this);
-    }
+  accept<R>(visitor: TypeVisitor<R>): R {
+    return visitor.visitArrayType(this);
+  }
 }
 
 export class OptionalType extends TypeNode {
-    innerType: TypeNode;
+  innerType: TypeNode;
 
-    constructor(innerType: TypeNode) {
-        super();
-        this.innerType = innerType;
-    }
+  constructor(innerType: TypeNode) {
+    super();
+    this.innerType = innerType;
+  }
 
-    accept<R>(visitor: TypeVisitor<R>): R {
-        return visitor.visitOptionalType(this);
-    }
+  accept<R>(visitor: TypeVisitor<R>): R {
+    return visitor.visitOptionalType(this);
+  }
 }
 
 export class GenericType extends TypeNode {
-    // Used for when a type is just a generic parameter T?
-    // Or use NamedType for that? NamedType seems sufficient if it refers to "T".
-    // This class might be redundant if we use NamedType for "T".
-    // But if we want to distinguish type arguments...
-    // I'll leave it out for now and use NamedType.
+  // Used for when a type is just a generic parameter T?
+  // Or use NamedType for that? NamedType seems sufficient if it refers to "T".
+  // This class might be redundant if we use NamedType for "T".
+  // But if we want to distinguish type arguments...
+  // I'll leave it out for now and use NamedType.
 
-    name: Token;
+  name: Token;
 
-    constructor(name: Token) {
-        super();
-        this.name = name;
-    }
+  constructor(name: Token) {
+    super();
+    this.name = name;
+  }
 
-    accept<R>(visitor: TypeVisitor<R>): R {
-        return visitor.visitGenericType(this);
-    }
+  accept<R>(visitor: TypeVisitor<R>): R {
+    return visitor.visitGenericType(this);
+  }
 }

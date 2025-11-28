@@ -29,6 +29,7 @@ export class Lexer {
     false: TokenType.FALSE,
     null: TokenType.NULL,
     this: TokenType.THIS,
+    operator: TokenType.OPERATOR,
   };
 
   constructor(source: string) {
@@ -243,8 +244,8 @@ export class Lexer {
 
   private isAlpha(c: string): boolean {
     return (c >= "a" && c <= "z") ||
-           (c >= "A" && c <= "Z") ||
-            c == "_";
+      (c >= "A" && c <= "Z") ||
+      c == "_";
   }
 
   private isAlphaNumeric(c: string): boolean {

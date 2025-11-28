@@ -1,0 +1,7 @@
+fun test(v: i32): i32 {
+    return when (v) {
+        0 -> 2
+        1 -> 5
+        else -> 10
+    }
+}

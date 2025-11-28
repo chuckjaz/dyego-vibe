@@ -28,6 +28,7 @@ export enum TokenType {
   FOR = "FOR", WHILE = "WHILE", BREAK = "BREAK", CONTINUE = "CONTINUE",
   AS = "AS", TRAIT = "TRAIT", USE = "USE", RETURN = "RETURN",
   TRUE = "TRUE", FALSE = "FALSE", NULL = "NULL", THIS = "THIS",
+  OPERATOR = "OPERATOR",
 
   AND = "AND", OR = "OR", // && and ||
 
