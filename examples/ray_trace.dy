@@ -105,8 +105,8 @@ fun render(t: f64, w: i32, h: i32) {
                     is f64 -> {
                         hit = Hit(sphere, tval);
                     }
-                }
-            }
+                };
+            };
 
             when (hit) {
                 is Hit -> {
@@ -115,7 +115,7 @@ fun render(t: f64, w: i32, h: i32) {
                 else -> {
                     print(" ")
                 }
-            }
+            };
             x = x + 1;
         }
         print("\n");
@@ -123,7 +123,7 @@ fun render(t: f64, w: i32, h: i32) {
     }
 }
 
-value Hit(val sphere: Sphere, val tval: f64)
+value Hit(val sphere: Sphere, val tval: f64) { }
 
 fun pixel(ray: Ray, sphere: Sphere, tval: f64): String {
     val pi: Vector = ray.origin + ray.direction * tval;
@@ -140,7 +140,7 @@ fun f64.clamp(min: f64, max: f64) =
     }
 
 fun diffuseShading(p1: Vector, sphere: Sphere, light: Light): Color {
-    val n: Vector = sphere.normalize()
-    val lam: Double = ((light.position - p1).normalize() dot n).clamp(0.0, 1.0)
-    return light.color * lam * 0.5  + sphere.color * 0.3
+    val n: Vector = sphere.normalize();
+    val lam: Double = ((light.position - p1).normalize() dot n).clamp(0.0, 1.0);
+    return light.color * lam * 0.5  + sphere.color * 0.3;
 }
