@@ -125,6 +125,7 @@ export class Lexer {
         break;
 
       case '"': this.string(); break;
+      case '`': this.quotedIdentifier(); break;
 
       default:
         if (this.isDigit(c)) {
@@ -136,6 +137,26 @@ export class Lexer {
         }
         break;
     }
+  }
+
+  private quotedIdentifier(): void {
+    while (this.peek() !== '`' && !this.isAtEnd()) {
+      if (this.peek() === '\n') {
+        throw new Error(`Unexpected newline in quoted identifier at line ${this.line}, column ${this.column}`);
+      }
+      this.advance();
+    }
+
+    if (this.isAtEnd()) {
+      throw new Error("Unterminated quoted identifier.");
+    }
+
+    // The closing backtick.
+    this.advance();
+
+    // Trim the surrounding backticks.
+    const value = this.source.substring(this.start + 1, this.current - 1);
+    this.addToken(TokenType.IDENTIFIER, null, value);
   }
 
   private blockComment(): void {
@@ -243,8 +264,8 @@ export class Lexer {
     return this.source.charAt(this.current++);
   }
 
-  private addToken(type: TokenType, literal: any = null): void {
-    const text = this.source.substring(this.start, this.current);
+  private addToken(type: TokenType, literal: any = null, lexeme: string | null = null): void {
+    const text = lexeme ?? this.source.substring(this.start, this.current);
     // Use the stored startColumn which was captured at the beginning of scanToken
     this.tokens.push(new Token(type, text, literal, this.line, this.startColumn));
   }
