@@ -169,7 +169,7 @@ export class Parser {
                    this.error(this.previous(), "Expect 'fun' after 'var' in value type body (for mutating method).");
               }
           } else {
-              this.error(this.peek(), "Expect method declaration in value type body.");
+              throw this.error(this.peek(), "Expect method declaration in value type body.");
           }
       }
       this.consume(TokenType.RIGHT_BRACE, "Expect '}' after value type body.");

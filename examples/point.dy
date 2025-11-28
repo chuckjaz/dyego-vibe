@@ -1,5 +1,8 @@
-value Point(val x: f32, val y: f32) {
+value Point(val x: f64, val y: f64) {
     fun distance() {
-        (x*x + y*y).sqrt()
+        x*x + y*y
     }
 }
+
+val p = Point(1.0, 2.0);
+val x = p.distance();
