@@ -341,7 +341,7 @@ export class Parser {
       } else if (expr instanceof GetExpr) {
           return new SetExpr(expr.object, expr.name, value, expr.isSafe);
       } else if (expr instanceof IndexGetExpr) {
-          return new IndexSetExpr(expr.object, expr.index, value);
+          return new IndexSetExpr(expr.object, expr.index, value, expr.bracket);
       }
 
       this.error(equals, "Invalid assignment target.");
@@ -469,9 +469,10 @@ export class Parser {
          const name = this.consume(TokenType.IDENTIFIER, "Expect property name after '?.'.");
          expr = new GetExpr(expr, name, true);
       } else if (this.match(TokenType.LEFT_BRACKET)) {
+          const bracket = this.previous();
           const index = this.expression();
           this.consume(TokenType.RIGHT_BRACKET, "Expect ']' after index.");
-          expr = new IndexGetExpr(expr, index);
+          expr = new IndexGetExpr(expr, index, bracket);
       } else if (this.match(TokenType.QUESTION)) {
           const operator = this.previous();
           expr = new PropagateExpr(expr, operator);

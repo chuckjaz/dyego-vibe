@@ -530,8 +530,51 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         return new ArrayType(firstType);
     }
 
-    visitIndexGetExpr(expr: IndexGetExpr): TypeNode { return this.getUnitType(); }
-    visitIndexSetExpr(expr: IndexSetExpr): TypeNode { return this.getUnitType(); }
+    visitIndexGetExpr(expr: IndexGetExpr): TypeNode {
+        const objectType = this.evaluate(expr.object);
+        const indexType = this.evaluate(expr.index);
+
+        const isI32 = indexType instanceof NamedType && indexType.name.lexeme === "i32";
+        const isDynamic = indexType instanceof NamedType && indexType.name.lexeme === "Dynamic";
+
+        if (!isI32 && !isDynamic) {
+             throw new CheckerError(expr.bracket, `Index must be an integer.`);
+        }
+
+        if (objectType instanceof ArrayType) {
+            return objectType.elementType;
+        }
+
+        if (objectType instanceof NamedType && objectType.name.lexeme === "Dynamic") {
+            return new NamedType(new Token(TokenType.IDENTIFIER, "Dynamic", null, 0, 0));
+        }
+
+        throw new CheckerError(expr.bracket, `Type ${this.typeToString(objectType)} is not an array.`);
+    }
+
+    visitIndexSetExpr(expr: IndexSetExpr): TypeNode {
+        const objectType = this.evaluate(expr.object);
+        const indexType = this.evaluate(expr.index);
+        const valueType = this.evaluate(expr.value);
+
+        const isI32 = indexType instanceof NamedType && indexType.name.lexeme === "i32";
+        const isDynamic = indexType instanceof NamedType && indexType.name.lexeme === "Dynamic";
+
+        if (!isI32 && !isDynamic) {
+             throw new CheckerError(expr.bracket, `Index must be an integer.`);
+        }
+
+        if (objectType instanceof ArrayType) {
+             this.checkType(objectType.elementType, valueType, expr.bracket);
+             return objectType.elementType;
+        }
+
+        if (objectType instanceof NamedType && objectType.name.lexeme === "Dynamic") {
+            return valueType;
+        }
+
+        throw new CheckerError(expr.bracket, `Type ${this.typeToString(objectType)} is not an array.`);
+    }
     visitPropagateExpr(expr: PropagateExpr): TypeNode { return this.evaluate(expr.expression); }
     visitCastExpr(expr: CastExpr): TypeNode { return expr.targetType; }
 }

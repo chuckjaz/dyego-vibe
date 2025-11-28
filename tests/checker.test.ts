@@ -294,4 +294,52 @@ describe('Type Checker', () => {
        expect(errors.length).toBe(1);
        expect(errors[0].message).toContain("Array elements must be of the same type");
    });
+
+    test('Issue #16: Array index has incorrect type', () => {
+        const source = `
+            val a = [1, 2, 3];
+            val b: i32 = a[0];
+        `;
+        const errors = check(source);
+        expect(errors.length).toBe(0);
+    });
+
+    test('Array index assignment with correct type', () => {
+        const source = `
+            val a = [1, 2, 3];
+            a[0] = 4;
+        `;
+        const errors = check(source);
+        expect(errors.length).toBe(0);
+    });
+
+    test('Array index assignment with incorrect type', () => {
+        const source = `
+            val a = [1, 2, 3];
+            a[0] = "4";
+        `;
+        const errors = check(source);
+        expect(errors.length).toBeGreaterThan(0);
+        expect(errors[0].message).toContain("Expected type i32, but got String");
+    });
+
+    test('Array index must be integer', () => {
+        const source = `
+            val a = [1, 2, 3];
+            val b = a["0"];
+        `;
+        const errors = check(source);
+        expect(errors.length).toBeGreaterThan(0);
+        expect(errors[0].message).toContain("Index must be an integer");
+    });
+
+    test('Array index cannot be array', () => {
+        const source = `
+            val a = [1, 2, 3];
+            val b = a[[0]];
+        `;
+        const errors = check(source);
+        expect(errors.length).toBeGreaterThan(0);
+        expect(errors[0].message).toContain("Index must be an integer");
+    });
 });

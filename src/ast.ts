@@ -325,11 +325,13 @@ export class ArrayLiteralExpr extends Expr {
 export class IndexGetExpr extends Expr {
     object: Expr;
     index: Expr;
+    bracket: Token;
 
-    constructor(object: Expr, index: Expr) {
+    constructor(object: Expr, index: Expr, bracket: Token) {
         super();
         this.object = object;
         this.index = index;
+        this.bracket = bracket;
     }
 
     accept<R>(visitor: ExprVisitor<R>): R {
@@ -341,12 +343,14 @@ export class IndexSetExpr extends Expr {
     object: Expr;
     index: Expr;
     value: Expr;
+    bracket: Token;
 
-    constructor(object: Expr, index: Expr, value: Expr) {
+    constructor(object: Expr, index: Expr, value: Expr, bracket: Token) {
         super();
         this.object = object;
         this.index = index;
         this.value = value;
+        this.bracket = bracket;
     }
 
     accept<R>(visitor: ExprVisitor<R>): R {
