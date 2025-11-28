@@ -98,6 +98,15 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
                 [], // generics
                 false, // isMutating
                 false // isOperator
+            ),
+            new FunctionStmt(
+                new Token(TokenType.IDENTIFIER, "floor", null, 0, 0),
+                [],
+                new NamedType(new Token(TokenType.IDENTIFIER, "i32", null, 0, 0)),
+                new BlockExpr([]),
+                [],
+                false,
+                false
             )
         ];
         const f64 = new ValueStmt(
