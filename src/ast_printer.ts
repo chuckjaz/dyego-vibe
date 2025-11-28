@@ -5,7 +5,7 @@ import {
   Expr, Stmt, ExprVisitor, StmtVisitor, TypeVisitor,
   ExpressionStmt, FunctionStmt, ReturnStmt, VarStmt, WhileStmt, ForStmt,
   BreakStmt, ContinueStmt, ValueStmt, UseStmt, TraitStmt,
-  TypeNode, NamedType, UnionType, ArrayType, GenericType
+  TypeNode, NamedType, UnionType, ArrayType, GenericType, IsCondition
 } from "./ast";
 
 export class AstPrinter implements ExprVisitor<string>, StmtVisitor<string>, TypeVisitor<string> {
@@ -89,7 +89,12 @@ export class AstPrinter implements ExprVisitor<string>, StmtVisitor<string>, Typ
     let s = `(when `;
     if (expr.subject) s += `${expr.subject.accept(this)} `;
     s += expr.entries.map(e => {
-      const conds = e.conditions.map(c => c.accept(this)).join(", ");
+      const conds = e.conditions.map(c => {
+        if (c instanceof IsCondition) {
+          return `is ${c.type.accept(this)}`;
+        }
+        return c.accept(this);
+      }).join(", ");
       return `[${conds} -> ${e.body.accept(this)}]`;
     }).join(" ");
     if (expr.elseBranch) {

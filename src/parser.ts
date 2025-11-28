@@ -5,7 +5,7 @@ import {
   WhenExpr, LambdaExpr, ArrayLiteralExpr, IndexGetExpr, IndexSetExpr, PropagateExpr,
   CastExpr, Stmt, ExpressionStmt, FunctionStmt, ReturnStmt, VarStmt, WhileStmt,
   ForStmt, BreakStmt, ContinueStmt, ValueStmt, UseStmt, TraitStmt, TypeNode, NamedType,
-  UnionType, ArrayType, GenericType, WhenEntry
+  UnionType, ArrayType, GenericType, WhenEntry, IsCondition
 } from "./ast";
 
 export class ParserError extends Error {
@@ -633,9 +633,17 @@ export class Parser {
         elseBranch = this.parseControlFlowBody();
         this.match(TokenType.COMMA, TokenType.SEMICOLON);
       } else {
-        const conditions: Expr[] = [];
+        const conditions: (Expr | IsCondition)[] = [];
         do {
-          conditions.push(this.expression());
+          if (this.match(TokenType.IS)) {
+            if (!subject) {
+              throw this.error(this.previous(), "'is' condition is only allowed when 'when' has a subject.");
+            }
+            const type = this.parseType();
+            conditions.push(new IsCondition(type));
+          } else {
+            conditions.push(this.expression());
+          }
         } while (this.match(TokenType.COMMA));
 
         this.consume(TokenType.ARROW, "Expect '->' after conditions.");

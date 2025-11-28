@@ -2,7 +2,7 @@ import {
     Expr, Stmt, TypeNode, ExprVisitor, StmtVisitor,
     LiteralExpr, VariableExpr, AssignExpr, BinaryExpr, CallExpr, GetExpr, GroupingExpr, LogicalExpr, SetExpr, ThisExpr, UnaryExpr, BlockExpr, IfExpr, WhenExpr, LambdaExpr, ArrayLiteralExpr, IndexGetExpr, IndexSetExpr, PropagateExpr, CastExpr,
     ExpressionStmt, FunctionStmt, ReturnStmt, VarStmt, WhileStmt, ForStmt, BreakStmt, ContinueStmt, ValueStmt, UseStmt, TraitStmt,
-    NamedType, UnionType, ArrayType, GenericType
+    NamedType, UnionType, ArrayType, GenericType, IsCondition
 } from "./ast";
 import { TokenType, Token } from "./token";
 
@@ -141,8 +141,23 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
             return this.isTypeCompatible(target.elementType, source.elementType);
         }
 
+        if (target instanceof UnionType) {
+            // A is compatible with A | B
+            // A | B is compatible with A | B | C
+            if (source instanceof UnionType) {
+                return source.types.every(s => target.types.some(t => this.isTypeCompatible(t, s)));
+            } else {
+                return target.types.some(t => this.isTypeCompatible(t, source));
+            }
+        }
+
+        if (source instanceof UnionType) {
+            // A | B is NOT compatible with A (unless B is A)
+            return source.types.every(s => this.isTypeCompatible(target, s));
+        }
+
         // Basic compatibility check
-        // TODO: Implement more complex compatibility (Union types, Inheritance, etc.)
+        // TODO: Implement more complex compatibility (Inheritance, etc.)
         // Strip tokens/location for structural check
         const targetStr = this.typeToString(target);
         const sourceStr = this.typeToString(source);
@@ -166,6 +181,9 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         // Helper for ArrayType, etc.
         if (type instanceof ArrayType) {
             return this.typeToString(type.elementType) + "[]";
+        }
+        if (type instanceof UnionType) {
+            return type.types.map(t => this.typeToString(t)).join(" | ");
         }
         return "Type";
     }
@@ -591,23 +609,76 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         }
 
         const entryTypes: TypeNode[] = [];
+        const coveredTypes: TypeNode[] = [];
 
         for (const entry of expr.entries) {
+            const previousEnv = this.environment;
+            this.environment = new Environment(this.environment);
+
             for (const condition of entry.conditions) {
-                const conditionType = this.evaluate(condition);
-                if (subjectType) {
-                    // Check compatibility with subject
-                    this.checkType(subjectType, conditionType, expr.keyword);
+                if (condition instanceof IsCondition) {
+                    if (!subjectType) {
+                        throw new CheckerError(expr.keyword, "'is' condition is only allowed when 'when' has a subject.");
+                    }
+                    // Check if condition.type is part of subjectType
+                    if (!this.isTypeCompatible(subjectType, condition.type) && !this.isTypeCompatible(condition.type, subjectType)) {
+                        throw new CheckerError(expr.keyword, `Type '${this.typeToString(condition.type)}' is not compatible with subject type '${this.typeToString(subjectType)}'.`);
+                    }
+
+                    // Narrow type in body
+                    // If subject is a variable, we can shadow it with narrowed type
+                    if (expr.subject instanceof VariableExpr) {
+                        this.environment.define(expr.subject.name.lexeme, condition.type);
+                    }
+                    coveredTypes.push(condition.type);
+
                 } else {
-                    // Condition must be boolean
-                    this.checkType(this.getBooleanType(), conditionType, expr.keyword);
+                    const conditionType = this.evaluate(condition);
+                    if (subjectType) {
+                        // Check compatibility with subject
+                        this.checkType(subjectType, conditionType, expr.keyword);
+                    } else {
+                        // Condition must be boolean
+                        this.checkType(this.getBooleanType(), conditionType, expr.keyword);
+                    }
                 }
             }
             entryTypes.push(this.evaluate(entry.body));
+            this.environment = previousEnv;
         }
 
         if (expr.elseBranch) {
             entryTypes.push(this.evaluate(expr.elseBranch));
+
+            // Check if else is redundant?
+            // "It is also an error to leave one of the parts of a union uncovered by a branch of the when statement. In other ords the when statement must be complete."
+            // "The else clause, assume the type to be a union typ with the types in the other is causes excluded. This this is an empty set, report an error."
+
+            if (subjectType instanceof UnionType) {
+                const remainingTypes = subjectType.types.filter(t => !coveredTypes.some(c => this.isTypeCompatible(c, t)));
+                if (remainingTypes.length === 0 && coveredTypes.length > 0) {
+                    // If we have covered all types and there is an else, it might be redundant, but prompt says:
+                    // "This this is an empty set, report an error."
+                    throw new CheckerError(expr.keyword, "'else' branch is redundant because all cases are covered.");
+                }
+            }
+
+        } else {
+            // Check exhaustiveness
+            if (subjectType instanceof UnionType) {
+                const remainingTypes = subjectType.types.filter(t => !coveredTypes.some(c => this.isTypeCompatible(c, t)));
+                if (remainingTypes.length > 0) {
+                    throw new CheckerError(expr.keyword, `When expression is not exhaustive. Missing cases: ${remainingTypes.map(t => this.typeToString(t)).join(", ")}.`);
+                }
+            } else if (subjectType) {
+                // If not a union type, and no else, and we used 'is', we probably didn't cover it unless it's a single type 'is T'
+                if (coveredTypes.length > 0) {
+                    const remaining = !coveredTypes.some(c => this.isTypeCompatible(c, subjectType));
+                    if (remaining) {
+                        throw new CheckerError(expr.keyword, "When expression is not exhaustive.");
+                    }
+                }
+            }
         }
 
         if (entryTypes.length === 0) {
@@ -615,17 +686,18 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         }
 
         const firstType = entryTypes[0];
-        const isUnit = this.typeToString(firstType) === "Unit";
-
-        // If it's an expression (returning non-Unit), it must have an else branch or cover all cases.
-        // For simplicity, we enforce 'else' branch for now if it returns a value.
-        // We might want to relax this if we can prove exhaustiveness (e.g. enum or boolean).
-        if (!isUnit && !expr.elseBranch) {
-            throw new CheckerError(expr.keyword, "'when' expression must be exhaustive, add an 'else' branch.");
-        }
-
+        // ... rest of compatibility check ...
         for (let i = 1; i < entryTypes.length; i++) {
+            // Allow union return?
+            // "The when statement must be complete."
+            // Usually when returns a common supertype.
+            // For now, keep strict compatibility or allow union?
+            // Existing code enforces compatibility with first branch.
             if (!this.isTypeCompatible(firstType, entryTypes[i])) {
+                // Try to find common supertype or union?
+                // For now, stick to existing logic but maybe allow one way compatibility?
+                // If we want to return a Union, we'd need to construct it.
+                // But let's stick to existing strict check unless requested.
                 throw new CheckerError(expr.keyword, `When branches must return compatible types. Got ${this.typeToString(firstType)} and ${this.typeToString(entryTypes[i])}.`);
             }
         }

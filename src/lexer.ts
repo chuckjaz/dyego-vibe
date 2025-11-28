@@ -30,6 +30,7 @@ export class Lexer {
     null: TokenType.NULL,
     this: TokenType.THIS,
     operator: TokenType.OPERATOR,
+    is: TokenType.IS,
   };
 
   constructor(source: string) {

@@ -265,11 +265,19 @@ export class IfExpr extends Expr {
   }
 }
 
+export class IsCondition {
+  type: TypeNode;
+
+  constructor(type: TypeNode) {
+    this.type = type;
+  }
+}
+
 export class WhenEntry {
-  conditions: Expr[]; // if empty, it's 'else'
+  conditions: (Expr | IsCondition)[]; // if empty, it's 'else'
   body: Expr;
 
-  constructor(conditions: Expr[], body: Expr) {
+  constructor(conditions: (Expr | IsCondition)[], body: Expr) {
     this.conditions = conditions;
     this.body = body;
   }
