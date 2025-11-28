@@ -1,0 +1,55 @@
+value Unit() {
+    operator fun `==`(other: Unit): Boolean = intrinsic
+    operator fun `!=`(other: Unit): Boolean = intrinsic
+}
+
+value Boolean() {
+    operator fun `==`(other: Boolean): Boolean = intrinsic
+    operator fun `!=`(other: Boolean): Boolean = intrinsic
+}
+
+value String() {
+    operator fun `+`(other: String): String = intrinsic
+    operator fun `==`(other: String): Boolean = intrinsic
+    operator fun `!=`(other: String): Boolean = intrinsic
+}
+
+value Null() {
+    operator fun `==`(other: Null): Boolean = intrinsic
+    operator fun `!=`(other: Null): Boolean = intrinsic
+}
+
+value i32() {
+    operator fun `+`(other: i32): i32 = intrinsic
+    operator fun `-`(other: i32): i32 = intrinsic
+    operator fun `*`(other: i32): i32 = intrinsic
+    operator fun `/`(other: i32): i32 = intrinsic
+    operator fun `%`(other: i32): i32 = intrinsic
+
+    operator fun `<`(other: i32): Boolean = intrinsic
+    operator fun `<=`(other: i32): Boolean = intrinsic
+    operator fun `>`(other: i32): Boolean = intrinsic
+    operator fun `>=`(other: i32): Boolean = intrinsic
+
+    operator fun `==`(other: i32): Boolean = intrinsic
+    operator fun `!=`(other: i32): Boolean = intrinsic
+}
+
+value f64() {
+    fun sqrt(): f64 = intrinsic
+    fun floor(): i32 = intrinsic
+
+    operator fun `+`(other: f64): f64 = intrinsic
+    operator fun `-`(other: f64): f64 = intrinsic
+    operator fun `*`(other: f64): f64 = intrinsic
+    operator fun `/`(other: f64): f64 = intrinsic
+    operator fun `%`(other: f64): f64 = intrinsic
+
+    operator fun `<`(other: f64): Boolean = intrinsic
+    operator fun `<=`(other: f64): Boolean = intrinsic
+    operator fun `>`(other: f64): Boolean = intrinsic
+    operator fun `>=`(other: f64): Boolean = intrinsic
+
+    operator fun `==`(other: f64): Boolean = intrinsic
+    operator fun `!=`(other: f64): Boolean = intrinsic
+}

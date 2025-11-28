@@ -5,6 +5,10 @@ import {
     NamedType, UnionType, ArrayType, GenericType, IsCondition
 } from "./ast";
 import { TokenType, Token } from "./token";
+import * as fs from 'fs';
+import * as path from 'path';
+import { Lexer } from './lexer';
+import { Parser } from './parser';
 
 export class CheckerError extends Error {
     token: Token;
@@ -83,39 +87,38 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
     private expectedType: TypeNode | null = null;
     private currentInferredReturnType: TypeNode | null = null;
     private visibleMethods: Map<string, FunctionStmt> = new Map();
+    private isLoadingPrefix: boolean = false;
 
     constructor() {
-        this.definePrimitives();
+        this.loadPrefix();
     }
 
-    private definePrimitives() {
-        const f64Methods = [
-            new FunctionStmt(
-                new Token(TokenType.IDENTIFIER, "sqrt", null, 0, 0),
-                [], // params
-                new NamedType(new Token(TokenType.IDENTIFIER, "f64", null, 0, 0)), // return type
-                new BlockExpr([]), // body
-                [], // generics
-                false, // isMutating
-                false // isOperator
-            ),
-            new FunctionStmt(
-                new Token(TokenType.IDENTIFIER, "floor", null, 0, 0),
-                [],
-                new NamedType(new Token(TokenType.IDENTIFIER, "i32", null, 0, 0)),
-                new BlockExpr([]),
-                [],
-                false,
-                false
-            )
-        ];
-        const f64 = new ValueStmt(
-            new Token(TokenType.IDENTIFIER, "f64", null, 0, 0),
-            [], // fields
-            f64Methods,
-            [] // generics
-        );
-        this.environment.define("f64", f64);
+    private loadPrefix() {
+        this.isLoadingPrefix = true;
+        const prefixPath = path.join(__dirname, 'prefix.dy');
+        if (fs.existsSync(prefixPath)) {
+            const content = fs.readFileSync(prefixPath, 'utf-8');
+            const lexer = new Lexer(content);
+            const tokens = lexer.scanTokens();
+            const parser = new Parser(tokens);
+            const statements = parser.parse();
+
+            const parserErrors = parser.getErrors();
+            if (parserErrors.length > 0) {
+                console.error("Parser errors in prefix.dy:");
+                for (const error of parserErrors) {
+                    console.error(`${error.token.line}:${error.token.column}: ${error.message}`);
+                }
+            }
+
+            // Execute prefix statements to populate environment
+            for (const statement of statements) {
+                this.execute(statement);
+            }
+        } else {
+            console.error(`Prefix file not found at ${prefixPath}`);
+        }
+        this.isLoadingPrefix = false;
     }
 
     check(statements: Stmt[]) {
@@ -255,26 +258,37 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         const previousInferredReturnType = this.currentInferredReturnType;
         this.currentInferredReturnType = null;
 
-        const bodyType = this.evaluate(stmt.body);
-
-        if (stmt.returnType) {
-            if (this.typeToString(bodyType) !== "Unit") {
-                this.checkType(stmt.returnType, bodyType, stmt.name);
-            } else if (this.typeToString(stmt.returnType) === "Unit") {
-                // OK
+        if (stmt.isIntrinsic) {
+            if (!this.isLoadingPrefix) {
+                throw new CheckerError(stmt.name, "'intrinsic' functions can only be defined in the prefix file.");
             }
+            // Intrinsic functions must have an explicit return type
+            if (!stmt.returnType) {
+                throw new CheckerError(stmt.name, "Intrinsic functions must have an explicit return type.");
+            }
+            // No body to check
         } else {
-            // Infer return type
-            if (this.typeToString(bodyType) !== "Unit") {
-                if (this.currentInferredReturnType) {
-                    if (!this.isTypeCompatible(this.currentInferredReturnType, bodyType)) {
-                        throw new CheckerError(stmt.name, `Function body returns ${this.typeToString(bodyType)}, but previous returns were ${this.typeToString(this.currentInferredReturnType)}.`);
-                    }
-                } else {
-                    this.currentInferredReturnType = bodyType;
+            const bodyType = this.evaluate(stmt.body);
+
+            if (stmt.returnType) {
+                if (this.typeToString(bodyType) !== "Unit") {
+                    this.checkType(stmt.returnType, bodyType, stmt.name);
+                } else if (this.typeToString(stmt.returnType) === "Unit") {
+                    // OK
                 }
+            } else {
+                // Infer return type
+                if (this.typeToString(bodyType) !== "Unit") {
+                    if (this.currentInferredReturnType) {
+                        if (!this.isTypeCompatible(this.currentInferredReturnType, bodyType)) {
+                            throw new CheckerError(stmt.name, `Function body returns ${this.typeToString(bodyType)}, but previous returns were ${this.typeToString(this.currentInferredReturnType)}.`);
+                        }
+                    } else {
+                        this.currentInferredReturnType = bodyType;
+                    }
+                }
+                stmt.returnType = this.currentInferredReturnType || this.getUnitType();
             }
-            stmt.returnType = this.currentInferredReturnType || this.getUnitType();
         }
 
         this.environment = previousEnv;
@@ -550,13 +564,7 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
             }
         }
 
-        this.checkType(left, right, expr.operator);
-
-        if (["EQUAL_EQUAL", "BANG_EQUAL", "GREATER", "GREATER_EQUAL", "LESS", "LESS_EQUAL"].includes(expr.operator.type)) {
-            return this.getBooleanType();
-        }
-
-        return left;
+        throw new CheckerError(expr.operator, `Operator '${expr.operator.lexeme}' is not defined for type '${this.typeToString(left)}'.`);
     }
 
     visitGetExpr(expr: GetExpr): TypeNode {

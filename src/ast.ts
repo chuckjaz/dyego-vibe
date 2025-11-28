@@ -422,9 +422,10 @@ export class FunctionStmt extends Stmt {
   generics: Token[]; // <T>
   isMutating: boolean; // var fun
   isOperator: boolean;
+  isIntrinsic: boolean;
   extensionType: TypeNode | null;
 
-  constructor(name: Token, params: { name: Token, type: TypeNode }[], returnType: TypeNode | null, body: Expr, generics: Token[], isMutating: boolean, isOperator: boolean = false, extensionType: TypeNode | null = null) {
+  constructor(name: Token, params: { name: Token, type: TypeNode }[], returnType: TypeNode | null, body: Expr, generics: Token[], isMutating: boolean, isOperator: boolean = false, extensionType: TypeNode | null = null, isIntrinsic: boolean = false) {
     super();
     this.name = name;
     this.params = params;
@@ -434,6 +435,7 @@ export class FunctionStmt extends Stmt {
     this.isMutating = isMutating;
     this.isOperator = isOperator;
     this.extensionType = extensionType;
+    this.isIntrinsic = isIntrinsic;
   }
 
   accept<R>(visitor: StmtVisitor<R>): R {

@@ -540,7 +540,7 @@ describe('Extension Methods', () => {
       `;
         const errorsFail = check(sourceFail);
         expect(errorsFail.length).toBeGreaterThan(0);
-        expect(errorsFail[0].message).toContain("Undefined property or method 'plusOne'");
+        expect(errorsFail[0].message).toContain("Undefined method 'plusOne' on 'i32'");
     });
 });
 

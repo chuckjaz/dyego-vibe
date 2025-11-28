@@ -31,6 +31,7 @@ export class Lexer {
     this: TokenType.THIS,
     operator: TokenType.OPERATOR,
     is: TokenType.IS,
+    intrinsic: TokenType.INTRINSIC,
   };
 
   constructor(source: string) {

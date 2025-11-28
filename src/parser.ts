@@ -118,19 +118,35 @@ export class Parser {
     // check for '{' before calling block to ensure correct error message location if needed,
     // but block() handles it.
     let body: BlockExpr;
+    let isIntrinsic = false;
+
     if (this.match(TokenType.EQUAL)) {
-      const value = this.expression();
-      this.consume(TokenType.SEMICOLON, "Expect ';' after expression body.");
-      // We use the '=' token as the location for the synthetic return statement.
-      // This ensures error messages point to something relevant.
-      body = new BlockExpr([new ReturnStmt(this.previous(), value)]);
+      if (this.match(TokenType.INTRINSIC)) {
+        isIntrinsic = true;
+        // Intrinsic functions have no body, but we need a placeholder.
+        // We can use an empty block or a special marker.
+        // Since body is typed as BlockExpr, let's use an empty block.
+        body = new BlockExpr([]);
+        // Optional semicolon? The prompt example doesn't show one, but usually statements end with ;
+        // "fun sqrt(): f64 = intrinsic"
+        // Let's allow optional semicolon.
+        if (this.check(TokenType.SEMICOLON)) {
+          this.advance();
+        }
+      } else {
+        const value = this.expression();
+        this.consume(TokenType.SEMICOLON, "Expect ';' after expression body.");
+        // We use the '=' token as the location for the synthetic return statement.
+        // This ensures error messages point to something relevant.
+        body = new BlockExpr([new ReturnStmt(this.previous(), value)]);
+      }
     } else {
       if (!this.check(TokenType.LEFT_BRACE)) {
         throw this.error(this.peek(), `Expect '{' before ${kind} body.`);
       }
       body = this.block();
     }
-    return new FunctionStmt(name, parameters, returnType, body, generics, isMutating, kind === "operator", extensionType);
+    return new FunctionStmt(name, parameters, returnType, body, generics, isMutating, kind === "operator", extensionType, isIntrinsic);
   }
 
   private varDeclaration(): Stmt {
