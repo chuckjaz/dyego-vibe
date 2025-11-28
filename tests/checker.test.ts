@@ -387,4 +387,47 @@ describe('Type Checker', () => {
         }
         expect(errors.length).toBe(0);
     });
+
+    test('Forward reference of method on this fails', () => {
+        const source = `
+            value Foo(val x: i32) {
+                fun bar() {
+                    baz() // Error: baz not yet defined
+                }
+                fun baz() {
+                    x
+                }
+            }
+        `;
+        const errors = check(source);
+        expect(errors.length).toBeGreaterThan(0);
+        expect(errors[0].message).toContain("Undefined variable 'baz'");
+    });
+
+    test('Recursive call on this succeeds', () => {
+        const source = `
+            value Foo(val x: i32) {
+                fun factorial(n: i32): i32 {
+                    if (n < 2) 1 else n * factorial(n - 1)
+                }
+            }
+        `;
+        const errors = check(source);
+        expect(errors.length).toBe(0);
+    });
+
+    test('Backward reference of method on this succeeds', () => {
+        const source = `
+            value Foo(val x: i32) {
+                fun baz() {
+                    x
+                }
+                fun bar() {
+                    baz()
+                }
+            }
+        `;
+        const errors = check(source);
+        expect(errors.length).toBe(0);
+    });
 });

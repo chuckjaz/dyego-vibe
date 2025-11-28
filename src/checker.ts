@@ -77,6 +77,7 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
     private errors: CheckerError[] = [];
     private expectedType: TypeNode | null = null;
     private currentInferredReturnType: TypeNode | null = null;
+    private visibleMethods: Map<string, FunctionStmt> = new Map();
 
     constructor() {
         this.definePrimitives();
@@ -376,7 +377,8 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
             const callee = expr.callee;
             calleeInfo = this.environment.lookup(callee.name.lexeme);
             if (!calleeInfo && this.currentValue) {
-                calleeInfo = this.currentValue.methods.find(m => m.name.lexeme === callee.name.lexeme);
+                // Implicit 'this' lookup: only check visible methods
+                calleeInfo = this.visibleMethods.get(callee.name.lexeme);
             }
             if (!calleeInfo) {
                 throw new CheckerError(callee.name, "Undefined variable '" + callee.name.lexeme + "'.");
@@ -441,7 +443,14 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
             const info = this.environment.lookup(left.name.lexeme);
             if (info instanceof ValueStmt) {
                 const operatorName = expr.operator.lexeme;
-                const method = info.methods.find(m => m.name.lexeme === operatorName);
+                let method: FunctionStmt | undefined;
+
+                if (info === this.currentValue) {
+                    // If we are inside the value type, only check visible methods
+                    method = this.visibleMethods.get(operatorName);
+                } else {
+                    method = info.methods.find(m => m.name.lexeme === operatorName);
+                }
 
                 if (method) {
                     // Check if it's a valid operator overload
@@ -481,7 +490,13 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
                 if (field) {
                     return field.type;
                 }
-                const method = info.methods.find(m => m.name.lexeme === expr.name.lexeme);
+                let method: FunctionStmt | undefined;
+                if (info === this.currentValue) {
+                    method = this.visibleMethods.get(expr.name.lexeme);
+                } else {
+                    method = info.methods.find(m => m.name.lexeme === expr.name.lexeme);
+                }
+
                 if (method) {
                     return new NamedType(new Token(TokenType.IDENTIFIER, "Function", null, expr.name.line, expr.name.column));
                 }
@@ -540,13 +555,30 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         this.environment.define(stmt.name.lexeme, stmt);
 
         const previousValue = this.currentValue;
+        const previousVisibleMethods = this.visibleMethods;
         this.currentValue = stmt;
+        this.visibleMethods = new Map();
 
         for (const method of stmt.methods) {
+            // Add method to visible methods BEFORE checking if we want recursive calls to be valid
+            // Or AFTER if we want strictly "defined before use"?
+            // Prompt says: "treat methods not yet seen as being undefined".
+            // Usually this means defined *before* the current method?
+            // "only allow methods that have been already been seen by the checker to be called on this"
+            // If I call `foo()` inside `foo()`, `foo` has been seen?
+            // "treat methods not yet seen as being undefined (that is, only define them in the environment as they are checked)"
+            // This implies we add them as we go.
+            // If I add it before checking, recursion is allowed.
+            // If I add it after, recursion is NOT allowed.
+            // "Allow method and operators on this to be called in the body of a method."
+            // Usually recursion is allowed.
+            // I will add it BEFORE checking to allow recursion.
+            this.visibleMethods.set(method.name.lexeme, method);
             this.checkFunction(method, false);
         }
 
         this.currentValue = previousValue;
+        this.visibleMethods = previousVisibleMethods;
     }
 
     visitUseStmt(stmt: UseStmt): void { }
