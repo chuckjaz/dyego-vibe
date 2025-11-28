@@ -322,7 +322,7 @@ describe('Type Checker', () => {
         expect(errors.length).toBeGreaterThan(0);
         expect(errors[0].message).toContain("Expected type i32, but got String");
     });
-
+});
     test('Array index must be integer', () => {
         const source = `
             val a = [1, 2, 3];
@@ -342,4 +342,3 @@ describe('Type Checker', () => {
         expect(errors.length).toBeGreaterThan(0);
         expect(errors[0].message).toContain("Index must be an integer");
     });
-});
