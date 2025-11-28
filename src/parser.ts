@@ -431,11 +431,24 @@ export class Parser {
   }
 
   private comparison(): Expr {
-    let expr = this.term();
+    let expr = this.infix();
 
     while (this.match(TokenType.GREATER, TokenType.GREATER_EQUAL, TokenType.LESS, TokenType.LESS_EQUAL)) {
       const operator = this.previous();
+      const right = this.infix();
+      expr = new BinaryExpr(expr, operator, right);
+    }
+
+    return expr;
+  }
+
+  private infix(): Expr {
+    let expr = this.term();
+
+    while (this.match(TokenType.IDENTIFIER)) {
+      const operator = this.previous();
       const right = this.term();
+      // Infix operators are left-associative
       expr = new BinaryExpr(expr, operator, right);
     }
 

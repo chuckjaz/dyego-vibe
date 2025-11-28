@@ -4,7 +4,7 @@ import { Parser } from '../src/parser';
 import {
   VarStmt, LiteralExpr, BinaryExpr, FunctionStmt, ValueStmt,
   CallExpr, LambdaExpr, IfExpr, WhenExpr, BlockExpr, NamedType,
-  VariableExpr, TraitStmt, ReturnStmt
+  VariableExpr, TraitStmt, ReturnStmt, ExpressionStmt
 } from '../src/ast';
 
 describe('Parser', () => {
@@ -115,7 +115,7 @@ describe('Parser', () => {
     parser.parse();
     const errors = parser.getErrors();
     expect(errors.length).toBeGreaterThan(0);
-    expect(errors[0].message).toContain("Expect ')' after arguments.");
+    expect(errors[0].message).toContain("Expect expression.");
   });
 
   test('parses single expression function using =', () => {
@@ -157,6 +157,17 @@ describe('Parser', () => {
     const times = val.methods[1];
     expect(times.isOperator).toBe(true);
     expect(times.name.lexeme).toBe('*');
+  });
+
+  test('parses infix operators', () => {
+    const stmts = parse('a dot b + c;');
+    const stmt = stmts[0] as ExpressionStmt;
+    // Precedence: term > infix > comparison
+    // a dot b + c -> a dot (b + c)
+    expect(stmt.expression).toBeInstanceOf(BinaryExpr);
+    const infix = stmt.expression as BinaryExpr;
+    expect(infix.operator.lexeme).toBe('dot');
+    expect(infix.right).toBeInstanceOf(BinaryExpr); // b + c
   });
 
 });
