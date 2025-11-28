@@ -6,6 +6,7 @@ value Unit() {
 value Boolean() {
     operator fun `==`(other: Boolean): Boolean = intrinsic
     operator fun `!=`(other: Boolean): Boolean = intrinsic
+    operator fun `!`(): Boolean = intrinsic
 }
 
 value String() {
@@ -33,12 +34,64 @@ value i32() {
 
     operator fun `==`(other: i32): Boolean = intrinsic
     operator fun `!=`(other: i32): Boolean = intrinsic
+
+    fun abs(): i32 = intrinsic
+    fun countLeadingZeros(): i32 = intrinsic
+    fun countTrailingZeros(): i32 = intrinsic
+    fun countNonZeroBits(): i32 = intrinsic
+    fun inv(): i32 = intrinsic
+    fun max(other: i32): i32 = intrinsic
+    fun min(other: i32): i32 = intrinsic
+}
+
+value i64() {
+    operator fun `+`(other: i64): i64 = intrinsic
+    operator fun `-`(other: i64): i64 = intrinsic
+    operator fun `*`(other: i64): i64 = intrinsic
+    operator fun `/`(other: i64): i64 = intrinsic
+    operator fun `%`(other: i64): i64 = intrinsic
+
+    operator fun `<`(other: i64): Boolean = intrinsic
+    operator fun `<=`(other: i64): Boolean = intrinsic
+    operator fun `>`(other: i64): Boolean = intrinsic
+    operator fun `>=`(other: i64): Boolean = intrinsic
+
+    operator fun `==`(other: i64): Boolean = intrinsic
+    operator fun `!=`(other: i64): Boolean = intrinsic
+
+    fun abs(): i64 = intrinsic
+    fun countLeadingZeros(): i64 = intrinsic
+    fun countTrailingZeros(): i64 = intrinsic
+    fun countNonZeroBits(): i64 = intrinsic
+    fun inv(): i64 = intrinsic
+    fun max(other: i64): i64 = intrinsic
+    fun min(other: i64): i64 = intrinsic
+}
+
+value f32() {
+    operator fun `+`(other: f32): f32 = intrinsic
+    operator fun `-`(other: f32): f32 = intrinsic
+    operator fun `*`(other: f32): f32 = intrinsic
+    operator fun `/`(other: f32): f32 = intrinsic
+    operator fun `%`(other: f32): f32 = intrinsic
+
+    operator fun `<`(other: f32): Boolean = intrinsic
+    operator fun `<=`(other: f32): Boolean = intrinsic
+    operator fun `>`(other: f32): Boolean = intrinsic
+    operator fun `>=`(other: f32): Boolean = intrinsic
+
+    operator fun `==`(other: f32): Boolean = intrinsic
+    operator fun `!=`(other: f32): Boolean = intrinsic
+
+    fun abs(): f32 = intrinsic
+    fun ceil(): i32 = intrinsic
+    fun floor(): i32 = intrinsic
+    fun max(other: f32): f32 = intrinsic
+    fun min(other: f32): f32 = intrinsic
+    fun sqrt(): f32 = intrinsic
 }
 
 value f64() {
-    fun sqrt(): f64 = intrinsic
-    fun floor(): i32 = intrinsic
-
     operator fun `+`(other: f64): f64 = intrinsic
     operator fun `-`(other: f64): f64 = intrinsic
     operator fun `*`(other: f64): f64 = intrinsic
@@ -52,4 +105,11 @@ value f64() {
 
     operator fun `==`(other: f64): Boolean = intrinsic
     operator fun `!=`(other: f64): Boolean = intrinsic
+
+    fun abs(): f64 = intrinsic
+    fun ceil(): i32 = intrinsic
+    fun floor(): i32 = intrinsic
+    fun max(other: f64): f64 = intrinsic
+    fun min(other: f64): f64 = intrinsic
+    fun sqrt(): f64 = intrinsic
 }
