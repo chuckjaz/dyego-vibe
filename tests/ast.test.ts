@@ -1,8 +1,7 @@
 import { Token, TokenType } from "../src/token";
 import {
-    BinaryExpr, LiteralExpr, GroupingExpr, UnaryExpr, BlockExpr,
-    ExpressionStmt, VarStmt, FunctionStmt, ReturnStmt, IfExpr,
-    NamedType, AssignExpr, CallExpr, VariableExpr
+    BinaryExpr, LiteralExpr, BlockExpr, VarStmt, FunctionStmt, ReturnStmt,
+    IfExpr, NamedType, AssignExpr, VariableExpr
 } from "../src/ast";
 import { AstPrinter } from "../src/ast_printer";
 

@@ -1,4 +1,3 @@
-import { TokenType, Token } from "../src/token";
 import { Checker } from "../src/checker";
 import { Parser } from "../src/parser";
 import { Lexer } from "../src/lexer";

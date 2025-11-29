@@ -5,7 +5,7 @@ import {
   WhenExpr, LambdaExpr, ArrayLiteralExpr, IndexGetExpr, IndexSetExpr, PropagateExpr,
   CastExpr, Stmt, ExpressionStmt, FunctionStmt, ReturnStmt, VarStmt, WhileStmt,
   ForStmt, BreakStmt, ContinueStmt, ValueStmt, UseStmt, TraitStmt, TypeNode, NamedType,
-  UnionType, ArrayType, GenericType, WhenEntry, IsCondition
+  UnionType, ArrayType, WhenEntry, IsCondition
 } from "./ast";
 
 export class ParserError extends Error {

@@ -1,7 +1,6 @@
 import { Checker, CheckerError } from '../src/checker';
 import { Parser } from '../src/parser';
 import { Lexer } from '../src/lexer';
-import { Stmt } from '../src/ast';
 
 function check(source: string) {
     const lexer = new Lexer(source);
