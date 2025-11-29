@@ -67,7 +67,7 @@ describe("Binaryen Smoke Test", () => {
         const checker = new Checker();
         checker.check(statements);
 
-        const generator = new CodeGenerator(module);
+        const generator = new CodeGenerator(module, checker);
         generator.generate(statements[0]); // Generate the function
 
         if (!module.validate()) {

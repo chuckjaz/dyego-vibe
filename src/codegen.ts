@@ -5,15 +5,18 @@ import {
     ExpressionStmt, FunctionStmt, ReturnStmt, VarStmt, WhileStmt, ForStmt, BreakStmt, ContinueStmt, ValueStmt, UseStmt, TraitStmt,
     NamedType, UnionType, ArrayType, GenericType, IsCondition
 } from "./ast";
+import { Checker } from "./checker";
 import { TokenType } from "./token";
 
 export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtVisitor<binaryen.ExpressionRef> {
     private module: binaryen.Module;
+    private checker: Checker;
     private localIndex: Map<string, number> = new Map();
     private nextLocalIndex: number = 0;
 
-    constructor(module: binaryen.Module) {
+    constructor(module: binaryen.Module, checker: Checker) {
         this.module = module;
+        this.checker = checker;
     }
 
     generate(stmt: Stmt) {
@@ -116,13 +119,15 @@ export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtV
 
     resolveType(type: TypeNode): binaryen.Type {
         if (type instanceof NamedType) {
-            switch (type.name.lexeme) {
-                case "i32": return binaryen.i32;
-                case "i64": return binaryen.i64;
-                case "f32": return binaryen.f32;
-                case "f64": return binaryen.f64;
-                case "void": return binaryen.none;
-                case "Unit": return binaryen.none;
+            const info = this.checker.getGlobal(type.name.lexeme);
+            if (info instanceof ValueStmt && info.intrinsicType) {
+                switch (info.intrinsicType.lexeme) {
+                    case "i32": return binaryen.i32;
+                    case "i64": return binaryen.i64;
+                    case "f32": return binaryen.f32;
+                    case "f64": return binaryen.f64;
+                    case "none": return binaryen.none;
+                }
             }
         }
         return binaryen.i32;

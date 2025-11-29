@@ -219,6 +219,8 @@ export class Parser {
     this.consume(TokenType.LEFT_BRACE, "Expect '{' before value type body.");
 
     const methods: FunctionStmt[] = [];
+    let intrinsicType: Token | null = null;
+
     while (!this.check(TokenType.RIGHT_BRACE) && !this.isAtEnd()) {
       if (this.match(TokenType.FUN)) {
         methods.push(this.functionDeclaration("method", true, false));
@@ -231,13 +233,25 @@ export class Parser {
       } else if (this.match(TokenType.OPERATOR)) {
         this.consume(TokenType.FUN, "Expect 'fun' after 'operator'.");
         methods.push(this.functionDeclaration("operator", true, false));
+      } else if (this.match(TokenType.INTRINSIC)) {
+        // intrinsic type <Identifier>
+        // Check if 'type' follows
+        // Since 'type' is not a keyword in TokenType (based on what I see), it might be an identifier.
+        // Let's check if we have a specific token for 'type' or if we need to match identifier "type".
+        // Looking at imports, there is no TokenType.TYPE.
+        // So we expect identifier "type".
+        const typeToken = this.consume(TokenType.IDENTIFIER, "Expect 'type' after 'intrinsic'.");
+        if (typeToken.lexeme !== "type") {
+          throw this.error(typeToken, "Expect 'type' after 'intrinsic'.");
+        }
+        intrinsicType = this.consume(TokenType.IDENTIFIER, "Expect intrinsic type name.");
       } else {
         throw this.error(this.peek(), `Expect method declaration in value type body, received '${this.peek().lexeme}'.`);
       }
     }
     this.consume(TokenType.RIGHT_BRACE, "Expect '}' after value type body.");
 
-    return new ValueStmt(name, fields, methods, generics);
+    return new ValueStmt(name, fields, methods, generics, intrinsicType);
   }
 
   private useDeclaration(): Stmt {

@@ -1,9 +1,11 @@
 value Unit() {
+    intrinsic type none
     operator fun `==`(other: Unit): Boolean = intrinsic
     operator fun `!=`(other: Unit): Boolean = intrinsic
 }
 
 value Boolean() {
+    intrinsic type i32
     operator fun `==`(other: Boolean): Boolean = intrinsic
     operator fun `!=`(other: Boolean): Boolean = intrinsic
     operator fun `!`(): Boolean = intrinsic
@@ -16,11 +18,13 @@ value String() {
 }
 
 value Null() {
+    intrinsic type i32
     operator fun `==`(other: Null): Boolean = intrinsic
     operator fun `!=`(other: Null): Boolean = intrinsic
 }
 
 value i32() {
+    intrinsic type i32
     operator fun `+`(other: i32): i32 = intrinsic
     operator fun `-`(other: i32): i32 = intrinsic
     operator fun `*`(other: i32): i32 = intrinsic
@@ -45,6 +49,7 @@ value i32() {
 }
 
 value i64() {
+    intrinsic type i64
     operator fun `+`(other: i64): i64 = intrinsic
     operator fun `-`(other: i64): i64 = intrinsic
     operator fun `*`(other: i64): i64 = intrinsic
@@ -69,6 +74,7 @@ value i64() {
 }
 
 value f32() {
+    intrinsic type f32
     operator fun `+`(other: f32): f32 = intrinsic
     operator fun `-`(other: f32): f32 = intrinsic
     operator fun `*`(other: f32): f32 = intrinsic
@@ -92,6 +98,7 @@ value f32() {
 }
 
 value f64() {
+    intrinsic type f64
     operator fun `+`(other: f64): f64 = intrinsic
     operator fun `-`(other: f64): f64 = intrinsic
     operator fun `*`(other: f64): f64 = intrinsic

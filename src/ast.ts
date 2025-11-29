@@ -544,13 +544,15 @@ export class ValueStmt extends Stmt {
   fields: { name: Token, type: TypeNode, isMutable: boolean }[];
   methods: FunctionStmt[];
   generics: Token[];
+  intrinsicType: Token | null;
 
-  constructor(name: Token, fields: { name: Token, type: TypeNode, isMutable: boolean }[], methods: FunctionStmt[], generics: Token[]) {
+  constructor(name: Token, fields: { name: Token, type: TypeNode, isMutable: boolean }[], methods: FunctionStmt[], generics: Token[], intrinsicType: Token | null = null) {
     super();
     this.name = name;
     this.fields = fields;
     this.methods = methods;
     this.generics = generics;
+    this.intrinsicType = intrinsicType;
   }
 
   accept<R>(visitor: StmtVisitor<R>): R {

@@ -148,6 +148,10 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         return this.errors;
     }
 
+    getGlobal(name: string): TypeInfo | undefined {
+        return this.environment.lookup(name);
+    }
+
     private execute(stmt: Stmt) {
         stmt.accept(this);
     }
@@ -687,6 +691,12 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
 
         this.currentValue = previousValue;
         this.visibleMethods = previousVisibleMethods;
+
+        if (stmt.intrinsicType) {
+            if (!this.isLoadingPrefix) {
+                throw new CheckerError(stmt.intrinsicType, "'intrinsic type' can only be used in the prefix file.");
+            }
+        }
     }
 
     visitUseStmt(stmt: UseStmt): void { }
