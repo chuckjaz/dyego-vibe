@@ -1,3 +1,8 @@
+import { Lexer } from "../src/lexer";
+import { Parser } from "../src/parser";
+import { Checker } from "../src/checker";
+import { CodeGenerator } from "../src/codegen";
+
 describe("Binaryen Smoke Test", () => {
     it("should compile and run a simple add function", async () => {
         const binaryen = (await import("binaryen")).default;
@@ -43,6 +48,38 @@ describe("Binaryen Smoke Test", () => {
         expect(add(-5, 5)).toBe(0);
 
         // Clean up
+        module.dispose();
+    });
+
+    it("should compile and run a simple add function using CodeGenerator", async () => {
+        const binaryen = (await import("binaryen")).default;
+        const module = new binaryen.Module();
+
+        const code = `
+            fun add(a: i32, b: i32): i32 = a + b;
+        `;
+
+        const lexer = new Lexer(code);
+        const tokens = lexer.scanTokens();
+        const parser = new Parser(tokens);
+        const statements = parser.parse();
+
+        const checker = new Checker();
+        checker.check(statements);
+
+        const generator = new CodeGenerator(module);
+        generator.generate(statements[0]); // Generate the function
+
+        if (!module.validate()) {
+            throw new Error("Module validation failed");
+        }
+
+        const wasm = module.emitBinary();
+        const instance = new WebAssembly.Instance(new WebAssembly.Module(wasm as any), {});
+        const add = instance.exports.add as (a: number, b: number) => number;
+
+        expect(add(10, 20)).toBe(30);
+
         module.dispose();
     });
 });
