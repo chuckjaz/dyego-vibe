@@ -3,7 +3,7 @@ import {
     Expr, Stmt, TypeNode, ExprVisitor, StmtVisitor,
     LiteralExpr, VariableExpr, AssignExpr, BinaryExpr, CallExpr, GetExpr, GroupingExpr, LogicalExpr, SetExpr, ThisExpr, UnaryExpr, BlockExpr, IfExpr, WhenExpr, LambdaExpr, ArrayLiteralExpr, IndexGetExpr, IndexSetExpr, PropagateExpr, CastExpr,
     ExpressionStmt, FunctionStmt, ReturnStmt, VarStmt, WhileStmt, ForStmt, BreakStmt, ContinueStmt, ValueStmt, UseStmt, TraitStmt,
-    NamedType, UnionType, ArrayType, GenericType, IsCondition
+    NamedType, UnionType, ArrayType, GenericType, IsCondition, IntrinsicExpr
 } from "./ast";
 import { Checker } from "./checker";
 import { TokenType } from "./token";
@@ -13,6 +13,7 @@ export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtV
     private checker: Checker;
     private localIndex: Map<string, number> = new Map();
     private nextLocalIndex: number = 0;
+    private variableBindings: Map<string, binaryen.ExpressionRef> = new Map();
 
     constructor(module: binaryen.Module, checker: Checker) {
         this.module = module;
@@ -25,6 +26,16 @@ export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtV
 
     private evaluate(expr: Expr): binaryen.ExpressionRef {
         return expr.accept(this);
+    }
+
+    private evaluateWithBindings(expr: Expr, bindings: Map<string, binaryen.ExpressionRef>): binaryen.ExpressionRef {
+        const previousBindings = this.variableBindings;
+        this.variableBindings = new Map([...previousBindings, ...bindings]);
+        try {
+            return this.evaluate(expr);
+        } finally {
+            this.variableBindings = previousBindings;
+        }
     }
 
     private execute(stmt: Stmt): binaryen.ExpressionRef {
@@ -77,23 +88,63 @@ export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtV
         const left = this.evaluate(expr.left);
         const right = this.evaluate(expr.right);
 
-        // Default to i32 if type is missing (for now)
-        const type = expr.type ? this.resolveType(expr.type) : binaryen.i32;
-
-        if (type === binaryen.i32) {
-            switch (expr.operator.type) {
-                case TokenType.PLUS: return this.module.i32.add(left, right);
-                case TokenType.MINUS: return this.module.i32.sub(left, right);
-                case TokenType.STAR: return this.module.i32.mul(left, right);
-                // TODO: div_s vs div_u
-                case TokenType.SLASH: return this.module.i32.div_s(left, right);
+        const leftType = expr.left.type;
+        if (leftType instanceof NamedType) {
+            const info = this.checker.getGlobal(leftType.name.lexeme);
+            if (info instanceof ValueStmt) {
+                const opName = expr.operator.lexeme;
+                const method = info.methods.find(m => m.name.lexeme === opName && m.isOperator);
+                if (method) {
+                    if (method.body instanceof BlockExpr && method.body.statements.length === 1 && method.body.statements[0] instanceof ReturnStmt) {
+                        const returnStmt = method.body.statements[0] as ReturnStmt;
+                        if (returnStmt.value instanceof IntrinsicExpr) {
+                            const intrinsic = returnStmt.value as IntrinsicExpr;
+                            const argsMap = new Map<string, binaryen.ExpressionRef>();
+                            argsMap.set("this", left);
+                            if (method.params.length > 0) {
+                                argsMap.set(method.params[0].name.lexeme, right);
+                            }
+                            return this.evaluateWithBindings(intrinsic, argsMap);
+                        } else {
+                            console.error("Return value is not IntrinsicExpr:", returnStmt.value);
+                        }
+                    } else {
+                        console.error("Method body structure mismatch:", method.body);
+                    }
+                } else {
+                    console.error(`Method '${opName}' not found or not operator in ${leftType.name.lexeme}. Available:`, info.methods.map(m => m.name.lexeme).join(", "));
+                }
+            } else {
+                console.error("Info is not ValueStmt:", info);
             }
+        } else {
+            console.error("Left type is not NamedType:", leftType);
         }
-        // TODO: Handle other types
-        throw new Error(`Unsupported binary operator ${expr.operator.lexeme} for type ${type}`);
+
+        throw new Error(`Operator ${expr.operator.lexeme} not defined for type or not intrinsic.`);
+    }
+
+    visitIntrinsicExpr(expr: IntrinsicExpr): binaryen.ExpressionRef {
+        const moduleName = expr.module.lexeme;
+        const opName = expr.op.lexeme;
+        const args = expr.args.map(arg => this.evaluate(arg));
+
+        const mod = (this.module as any)[moduleName];
+        if (!mod) {
+            throw new Error(`Unknown intrinsic module ${moduleName}`);
+        }
+        const func = mod[opName];
+        if (!func) {
+            throw new Error(`Unknown intrinsic operation ${moduleName}.${opName}`);
+        }
+
+        return func.apply(mod, args);
     }
 
     visitVariableExpr(expr: VariableExpr): binaryen.ExpressionRef {
+        if (this.variableBindings.has(expr.name.lexeme)) {
+            return this.variableBindings.get(expr.name.lexeme)!;
+        }
         const index = this.localIndex.get(expr.name.lexeme);
         if (index === undefined) {
             throw new Error(`Undefined variable ${expr.name.lexeme}`);
@@ -103,6 +154,13 @@ export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtV
         // The AST VariableExpr should have a type if checked.
         const type = expr.type ? this.resolveType(expr.type) : binaryen.i32;
         return this.module.local.get(index, type);
+    }
+
+    visitThisExpr(expr: ThisExpr): binaryen.ExpressionRef {
+        if (this.variableBindings.has("this")) {
+            return this.variableBindings.get("this")!;
+        }
+        throw new Error("'this' not bound");
     }
 
     visitLiteralExpr(expr: LiteralExpr): binaryen.ExpressionRef {
@@ -140,7 +198,6 @@ export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtV
     visitGroupingExpr(expr: GroupingExpr): binaryen.ExpressionRef { return this.evaluate(expr.expression); }
     visitLogicalExpr(expr: LogicalExpr): binaryen.ExpressionRef { throw new Error("Not implemented"); }
     visitSetExpr(expr: SetExpr): binaryen.ExpressionRef { throw new Error("Not implemented"); }
-    visitThisExpr(expr: ThisExpr): binaryen.ExpressionRef { throw new Error("Not implemented"); }
     visitUnaryExpr(expr: UnaryExpr): binaryen.ExpressionRef { throw new Error("Not implemented"); }
     visitIfExpr(expr: IfExpr): binaryen.ExpressionRef { throw new Error("Not implemented"); }
     visitWhenExpr(expr: WhenExpr): binaryen.ExpressionRef { throw new Error("Not implemented"); }

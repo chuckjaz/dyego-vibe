@@ -23,6 +23,7 @@ export interface ExprVisitor<R> {
   visitIndexSetExpr(expr: IndexSetExpr): R;
   visitPropagateExpr(expr: PropagateExpr): R;
   visitCastExpr(expr: CastExpr): R;
+  visitIntrinsicExpr(expr: IntrinsicExpr): R;
 }
 
 export interface StmtVisitor<R> {
@@ -395,6 +396,23 @@ export class CastExpr extends Expr {
 
   accept<R>(visitor: ExprVisitor<R>): R {
     return visitor.visitCastExpr(this);
+  }
+}
+
+export class IntrinsicExpr extends Expr {
+  module: Token;
+  op: Token;
+  args: Expr[];
+
+  constructor(module: Token, op: Token, args: Expr[]) {
+    super();
+    this.module = module;
+    this.op = op;
+    this.args = args;
+  }
+
+  accept<R>(visitor: ExprVisitor<R>): R {
+    return visitor.visitIntrinsicExpr(this);
   }
 }
 

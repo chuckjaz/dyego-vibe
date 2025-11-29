@@ -5,7 +5,8 @@ import {
   Expr, Stmt, ExprVisitor, StmtVisitor, TypeVisitor,
   ExpressionStmt, FunctionStmt, ReturnStmt, VarStmt, WhileStmt, ForStmt,
   BreakStmt, ContinueStmt, ValueStmt, UseStmt, TraitStmt,
-  TypeNode, NamedType, UnionType, ArrayType, GenericType, IsCondition
+  TypeNode, NamedType, UnionType, ArrayType, GenericType, IsCondition,
+  IntrinsicExpr
 } from "./ast";
 
 export class AstPrinter implements ExprVisitor<string>, StmtVisitor<string>, TypeVisitor<string> {
@@ -127,6 +128,11 @@ export class AstPrinter implements ExprVisitor<string>, StmtVisitor<string>, Typ
 
   visitCastExpr(expr: CastExpr): string {
     return `(cast ${expr.expression.accept(this)} ${expr.targetType.accept(this)})`;
+  }
+
+  visitIntrinsicExpr(expr: IntrinsicExpr): string {
+    const args = expr.args.map(p => `${p.accept(this)}`).join(", ");
+    return `(intrinsic ${expr.module.lexeme}.${expr.op.lexeme}(${args}))`
   }
 
   // Statements

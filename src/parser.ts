@@ -5,7 +5,7 @@ import {
   WhenExpr, LambdaExpr, ArrayLiteralExpr, IndexGetExpr, IndexSetExpr, PropagateExpr,
   CastExpr, Stmt, ExpressionStmt, FunctionStmt, ReturnStmt, VarStmt, WhileStmt,
   ForStmt, BreakStmt, ContinueStmt, ValueStmt, UseStmt, TraitStmt, TypeNode, NamedType,
-  UnionType, ArrayType, WhenEntry, IsCondition
+  UnionType, ArrayType, WhenEntry, IsCondition, IntrinsicExpr
 } from "./ast";
 
 export class ParserError extends Error {
@@ -121,23 +121,36 @@ export class Parser {
     let isIntrinsic = false;
 
     if (this.match(TokenType.EQUAL)) {
-      if (this.match(TokenType.INTRINSIC)) {
+      let isIntrinsicDecl = false;
+      if (this.check(TokenType.INTRINSIC)) {
+        const next = this.peekNext();
+        // If next is not identifier, it's definitely not an intrinsic expression (module name must be identifier)
+        if (!next || next.type !== TokenType.IDENTIFIER) {
+          isIntrinsicDecl = true;
+        } else {
+          // If next is identifier, check if it's followed by DOT
+          const nextNext = this.peekTwice();
+          if (!nextNext || nextNext.type !== TokenType.DOT) {
+            isIntrinsicDecl = true;
+          }
+        }
+
+        if (isIntrinsicDecl) {
+          this.consume(TokenType.INTRINSIC, "Expect 'intrinsic'.");
+        }
+      }
+
+      if (isIntrinsicDecl) {
         isIntrinsic = true;
-        // Intrinsic functions have no body, but we need a placeholder.
-        // We can use an empty block or a special marker.
-        // Since body is typed as BlockExpr, let's use an empty block.
         body = new BlockExpr([]);
-        // Optional semicolon? The prompt example doesn't show one, but usually statements end with ;
-        // "fun sqrt(): f64 = intrinsic"
-        // Let's allow optional semicolon.
         if (this.check(TokenType.SEMICOLON)) {
           this.advance();
         }
       } else {
         const value = this.expression();
-        this.consume(TokenType.SEMICOLON, "Expect ';' after expression body.");
-        // We use the '=' token as the location for the synthetic return statement.
-        // This ensures error messages point to something relevant.
+        if (this.check(TokenType.SEMICOLON)) {
+          this.advance();
+        }
         body = new BlockExpr([new ReturnStmt(this.previous(), value)]);
       }
     } else {
@@ -642,7 +655,28 @@ export class Parser {
       return this.arrayLiteral();
     }
 
+    if (this.match(TokenType.INTRINSIC)) {
+      return this.intrinsicExpression();
+    }
+
     throw this.error(this.peek(), "Expect expression.");
+  }
+
+  private intrinsicExpression(): Expr {
+    const module = this.consume(TokenType.IDENTIFIER, "Expect intrinsic module name.");
+    this.consume(TokenType.DOT, "Expect '.' after module name.");
+    const op = this.consume(TokenType.IDENTIFIER, "Expect intrinsic operation name.");
+    this.consume(TokenType.LEFT_PAREN, "Expect '(' after operation name.");
+
+    const args: Expr[] = [];
+    if (!this.check(TokenType.RIGHT_PAREN)) {
+      do {
+        args.push(this.expression());
+      } while (this.match(TokenType.COMMA));
+    }
+    this.consume(TokenType.RIGHT_PAREN, "Expect ')' after arguments.");
+
+    return new IntrinsicExpr(module, op, args);
   }
 
   private ifExpression(): Expr {
@@ -861,6 +895,11 @@ export class Parser {
   private peekNext(): Token | undefined {
     if (this.current + 1 >= this.tokens.length) return undefined;
     return this.tokens[this.current + 1];
+  }
+
+  private peekTwice(): Token | undefined {
+    if (this.current + 2 >= this.tokens.length) return undefined;
+    return this.tokens[this.current + 2];
   }
 
   private previous(): Token {

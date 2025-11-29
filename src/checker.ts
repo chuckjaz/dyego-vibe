@@ -2,7 +2,7 @@ import {
     Expr, Stmt, TypeNode, ExprVisitor, StmtVisitor,
     LiteralExpr, VariableExpr, AssignExpr, BinaryExpr, CallExpr, GetExpr, GroupingExpr, LogicalExpr, SetExpr, ThisExpr, UnaryExpr, BlockExpr, IfExpr, WhenExpr, LambdaExpr, ArrayLiteralExpr, IndexGetExpr, IndexSetExpr, PropagateExpr, CastExpr,
     ExpressionStmt, FunctionStmt, ReturnStmt, VarStmt, WhileStmt, ForStmt, BreakStmt, ContinueStmt, ValueStmt, UseStmt, TraitStmt,
-    NamedType, UnionType, ArrayType, GenericType, IsCondition
+    NamedType, UnionType, ArrayType, GenericType, IsCondition, IntrinsicExpr
 } from "./ast";
 import { TokenType, Token } from "./token";
 import * as fs from 'fs';
@@ -632,6 +632,20 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         throw new CheckerError(expr.keyword, "Invalid use of 'this'.");
     }
     visitUnaryExpr(expr: UnaryExpr): TypeNode { return this.evaluate(expr.right); }
+
+    visitIntrinsicExpr(expr: IntrinsicExpr): TypeNode {
+        // Basic type inference for intrinsics based on module name
+        const module = expr.module.lexeme;
+        const op = expr.op.lexeme;
+
+        if (['i32', 'i64', 'f32', 'f64'].includes(module)) {
+            if (['eq', 'ne', 'lt_s', 'lt_u', 'le_s', 'le_u', 'gt_s', 'gt_u', 'ge_s', 'ge_u', 'lt', 'le', 'gt', 'ge'].includes(op)) {
+                return this.getBooleanType();
+            }
+            return new NamedType(expr.module);
+        }
+        return this.getUnitType();
+    }
 
     visitIfExpr(expr: IfExpr): TypeNode {
         const conditionType = this.evaluate(expr.condition);

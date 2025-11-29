@@ -6,8 +6,8 @@ value Unit() {
 
 value Boolean() {
     intrinsic type i32
-    operator fun `==`(other: Boolean): Boolean = intrinsic
-    operator fun `!=`(other: Boolean): Boolean = intrinsic
+    operator fun `==`(other: Boolean): Boolean = intrinsic i32.eq(this, other)
+    operator fun `!=`(other: Boolean): Boolean = intrinsic i32.ne(this, other)
     operator fun `!`(): Boolean = intrinsic
 }
 
@@ -25,19 +25,19 @@ value Null() {
 
 value i32() {
     intrinsic type i32
-    operator fun `+`(other: i32): i32 = intrinsic
-    operator fun `-`(other: i32): i32 = intrinsic
-    operator fun `*`(other: i32): i32 = intrinsic
-    operator fun `/`(other: i32): i32 = intrinsic
-    operator fun `%`(other: i32): i32 = intrinsic
+    operator fun `+`(other: i32): i32 = intrinsic i32.add(this, other)
+    operator fun `-`(other: i32): i32 = intrinsic i32.sub(this, other)
+    operator fun `*`(other: i32): i32 = intrinsic i32.mul(this, other)
+    operator fun `/`(other: i32): i32 = intrinsic i32.div_s(this, other)
+    operator fun `%`(other: i32): i32 = intrinsic i32.rem_s(this, other)
 
-    operator fun `<`(other: i32): Boolean = intrinsic
-    operator fun `<=`(other: i32): Boolean = intrinsic
-    operator fun `>`(other: i32): Boolean = intrinsic
-    operator fun `>=`(other: i32): Boolean = intrinsic
+    operator fun `<`(other: i32): Boolean = intrinsic i32.lt_s(this, other)
+    operator fun `<=`(other: i32): Boolean = intrinsic i32.le_s(this, other)
+    operator fun `>`(other: i32): Boolean = intrinsic i32.gt_s(this, other)
+    operator fun `>=`(other: i32): Boolean = intrinsic i32.ge_s(this, other)
 
-    operator fun `==`(other: i32): Boolean = intrinsic
-    operator fun `!=`(other: i32): Boolean = intrinsic
+    operator fun `==`(other: i32): Boolean = intrinsic i32.eq(this, other)
+    operator fun `!=`(other: i32): Boolean = intrinsic i32.ne(this, other)
 
     fun abs(): i32 = intrinsic
     fun countLeadingZeros(): i32 = intrinsic
@@ -50,19 +50,19 @@ value i32() {
 
 value i64() {
     intrinsic type i64
-    operator fun `+`(other: i64): i64 = intrinsic
-    operator fun `-`(other: i64): i64 = intrinsic
-    operator fun `*`(other: i64): i64 = intrinsic
-    operator fun `/`(other: i64): i64 = intrinsic
-    operator fun `%`(other: i64): i64 = intrinsic
+    operator fun `+`(other: i64): i64 = intrinsic i64.add(this, other)
+    operator fun `-`(other: i64): i64 = intrinsic i64.sub(this, other)
+    operator fun `*`(other: i64): i64 = intrinsic i64.mul(this, other)
+    operator fun `/`(other: i64): i64 = intrinsic i64.div_s(this, other)
+    operator fun `%`(other: i64): i64 = intrinsic i64.rem_s(this, other)
 
-    operator fun `<`(other: i64): Boolean = intrinsic
-    operator fun `<=`(other: i64): Boolean = intrinsic
-    operator fun `>`(other: i64): Boolean = intrinsic
-    operator fun `>=`(other: i64): Boolean = intrinsic
+    operator fun `<`(other: i64): Boolean = intrinsic i64.lt_s(this, other)
+    operator fun `<=`(other: i64): Boolean = intrinsic i64.le_s(this, other)
+    operator fun `>`(other: i64): Boolean = intrinsic i64.gt_s(this, other)
+    operator fun `>=`(other: i64): Boolean = intrinsic i64.ge_s(this, other)
 
-    operator fun `==`(other: i64): Boolean = intrinsic
-    operator fun `!=`(other: i64): Boolean = intrinsic
+    operator fun `==`(other: i64): Boolean = intrinsic i64.eq(this, other)
+    operator fun `!=`(other: i64): Boolean = intrinsic i64.ne(this, other)
 
     fun abs(): i64 = intrinsic
     fun countLeadingZeros(): i64 = intrinsic
@@ -75,19 +75,17 @@ value i64() {
 
 value f32() {
     intrinsic type f32
-    operator fun `+`(other: f32): f32 = intrinsic
-    operator fun `-`(other: f32): f32 = intrinsic
-    operator fun `*`(other: f32): f32 = intrinsic
-    operator fun `/`(other: f32): f32 = intrinsic
-    operator fun `%`(other: f32): f32 = intrinsic
+    operator fun `+`(other: f32): f32 = intrinsic f32.add(this, other)
+    operator fun `-`(other: f32): f32 = intrinsic f32.sub(this, other)
+    operator fun `*`(other: f32): f32 = intrinsic f32.mul(this, other)
+    operator fun `/`(other: f32): f32 = intrinsic f32.div(this, other)
+    operator fun `<`(other: f32): Boolean = intrinsic f32.lt(this, other)
+    operator fun `<=`(other: f32): Boolean = intrinsic f32.le(this, other)
+    operator fun `>`(other: f32): Boolean = intrinsic f32.gt(this, other)
+    operator fun `>=`(other: f32): Boolean = intrinsic f32.ge(this, other)
 
-    operator fun `<`(other: f32): Boolean = intrinsic
-    operator fun `<=`(other: f32): Boolean = intrinsic
-    operator fun `>`(other: f32): Boolean = intrinsic
-    operator fun `>=`(other: f32): Boolean = intrinsic
-
-    operator fun `==`(other: f32): Boolean = intrinsic
-    operator fun `!=`(other: f32): Boolean = intrinsic
+    operator fun `==`(other: f32): Boolean = intrinsic f32.eq(this, other)
+    operator fun `!=`(other: f32): Boolean = intrinsic f32.ne(this, other)
 
     fun abs(): f32 = intrinsic
     fun ceil(): i32 = intrinsic
@@ -99,19 +97,18 @@ value f32() {
 
 value f64() {
     intrinsic type f64
-    operator fun `+`(other: f64): f64 = intrinsic
-    operator fun `-`(other: f64): f64 = intrinsic
-    operator fun `*`(other: f64): f64 = intrinsic
-    operator fun `/`(other: f64): f64 = intrinsic
-    operator fun `%`(other: f64): f64 = intrinsic
+    operator fun `+`(other: f64): f64 = intrinsic f64.add(this, other)
+    operator fun `-`(other: f64): f64 = intrinsic f64.sub(this, other)
+    operator fun `*`(other: f64): f64 = intrinsic f64.mul(this, other)
+    operator fun `/`(other: f64): f64 = intrinsic f64.div(this, other)
 
-    operator fun `<`(other: f64): Boolean = intrinsic
-    operator fun `<=`(other: f64): Boolean = intrinsic
-    operator fun `>`(other: f64): Boolean = intrinsic
-    operator fun `>=`(other: f64): Boolean = intrinsic
+    operator fun `<`(other: f64): Boolean = intrinsic f64.lt(this, other)
+    operator fun `<=`(other: f64): Boolean = intrinsic f64.le(this, other)
+    operator fun `>`(other: f64): Boolean = intrinsic f64.gt(this, other)
+    operator fun `>=`(other: f64): Boolean = intrinsic f64.ge(this, other)
 
-    operator fun `==`(other: f64): Boolean = intrinsic
-    operator fun `!=`(other: f64): Boolean = intrinsic
+    operator fun `==`(other: f64): Boolean = intrinsic f64.eq(this, other)
+    operator fun `!=`(other: f64): Boolean = intrinsic f64.ne(this, other)
 
     fun abs(): f64 = intrinsic
     fun ceil(): i32 = intrinsic
