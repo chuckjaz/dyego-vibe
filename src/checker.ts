@@ -89,13 +89,22 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
     private visibleMethods: Map<string, FunctionStmt> = new Map();
     private isLoadingPrefix: boolean = false;
 
-    constructor() {
-        this.loadPrefix();
+    constructor(prefixPath?: string) {
+        this.loadPrefix(prefixPath);
     }
 
-    private loadPrefix() {
+    private loadPrefix(customPath?: string) {
         this.isLoadingPrefix = true;
-        const prefixPath = path.join(__dirname, 'prefix.dy');
+        let prefixPath = customPath;
+        if (!prefixPath) {
+            if (typeof __dirname !== 'undefined') {
+                prefixPath = path.join(__dirname, 'prefix.dy');
+            } else {
+                // Fallback for environments where __dirname is not defined (e.g. ESM tests without explicit path)
+                // We assume running from project root in tests if not specified, but best to specify.
+                prefixPath = path.resolve('src/prefix.dy');
+            }
+        }
         if (fs.existsSync(prefixPath)) {
             const content = fs.readFileSync(prefixPath, 'utf-8');
             const lexer = new Lexer(content);

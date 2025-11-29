@@ -1,6 +1,9 @@
 import { Checker, CheckerError } from '../src/checker';
 import { Parser } from '../src/parser';
 import { Lexer } from '../src/lexer';
+import * as fs from 'fs';
+import * as path from 'path';
+import { FunctionStmt, NamedType } from '../src/ast';
 
 function check(source: string) {
     const lexer = new Lexer(source);
@@ -15,7 +18,11 @@ function check(source: string) {
         });
     }
 
-    const checker = new Checker();
+    // In tests, we are running from project root, so src/prefix.dy is correct relative path
+    // But Checker expects absolute path or relies on fallback.
+    // Let's pass absolute path to be safe.
+    const prefixPath = path.resolve('src/prefix.dy');
+    const checker = new Checker(prefixPath);
     checker.check(statements);
     return checker.getErrors();
 }
@@ -376,9 +383,7 @@ describe('Type Checker', () => {
         expect(errors[0].message).toContain("Expected type Vector, but got f64");
     });
     test('examples/vector.dy checks correctly', () => {
-        const fs = require('fs');
-        const path = require('path');
-        const filePath = path.join(__dirname, '../examples/vector.dy');
+        const filePath = path.resolve('examples/vector.dy');
         const source = fs.readFileSync(filePath, 'utf-8');
         const errors = check(source);
         if (errors.length > 0) {
@@ -440,9 +445,7 @@ describe('Extension Methods', () => {
         const stmts = parser.parse();
 
         expect(stmts.length).toBe(1);
-        // We need to cast to any or import FunctionStmt/NamedType if not available
-        // They are imported in checker.test.ts
-        const { FunctionStmt, NamedType } = require('../src/ast');
+        // FunctionStmt and NamedType are imported at top level
         const func = stmts[0] as any;
         expect(func).toBeInstanceOf(FunctionStmt);
         expect(func.name.lexeme).toBe('square');
