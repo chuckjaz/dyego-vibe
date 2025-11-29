@@ -35,7 +35,7 @@ describe("Binaryen Smoke Test", () => {
         const wasm = module.emitBinary();
 
         // Instantiate the module
-        const instance = new WebAssembly.Instance(new WebAssembly.Module(wasm), {});
+        const instance = new WebAssembly.Instance(new WebAssembly.Module(wasm as any), {});
 
         // Call the exported function
         const add = instance.exports.add as (a: number, b: number) => number;
