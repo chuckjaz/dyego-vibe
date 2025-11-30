@@ -39,13 +39,9 @@ value i32() {
     operator fun `==`(other: i32): Boolean = intrinsic i32.eq(this, other)
     operator fun `!=`(other: i32): Boolean = intrinsic i32.ne(this, other)
 
-    fun abs(): i32 = intrinsic
     fun countLeadingZeros(): i32 = intrinsic
     fun countTrailingZeros(): i32 = intrinsic
     fun countNonZeroBits(): i32 = intrinsic
-    fun inv(): i32 = intrinsic
-    fun max(other: i32): i32 = intrinsic
-    fun min(other: i32): i32 = intrinsic
 }
 
 value i64() {
@@ -64,13 +60,9 @@ value i64() {
     operator fun `==`(other: i64): Boolean = intrinsic i64.eq(this, other)
     operator fun `!=`(other: i64): Boolean = intrinsic i64.ne(this, other)
 
-    fun abs(): i64 = intrinsic
     fun countLeadingZeros(): i64 = intrinsic
     fun countTrailingZeros(): i64 = intrinsic
     fun countNonZeroBits(): i64 = intrinsic
-    fun inv(): i64 = intrinsic
-    fun max(other: i64): i64 = intrinsic
-    fun min(other: i64): i64 = intrinsic
 }
 
 value f32() {
