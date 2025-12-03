@@ -82,4 +82,38 @@ describe("Binaryen Smoke Test", () => {
 
         module.dispose();
     });
+
+    it("should compile and run a max function using if expression", async () => {
+        const binaryen = (await import("binaryen")).default;
+        const module = new binaryen.Module();
+
+        const code = `
+            fun max(a: i32, b: i32): i32 = if (a > b) a else b;
+        `;
+
+        const lexer = new Lexer(code);
+        const tokens = lexer.scanTokens();
+        const parser = new Parser(tokens);
+        const statements = parser.parse();
+
+        const checker = new Checker();
+        checker.check(statements);
+
+        const generator = new CodeGenerator(module, checker);
+        generator.generate(statements[0]);
+
+        if (!module.validate()) {
+            throw new Error("Module validation failed");
+        }
+
+        const wasm = module.emitBinary();
+        const instance = new WebAssembly.Instance(new WebAssembly.Module(wasm as any), {});
+        const max = instance.exports.max as (a: number, b: number) => number;
+
+        expect(max(10, 20)).toBe(20);
+        expect(max(30, 20)).toBe(30);
+        expect(max(5, 5)).toBe(5);
+
+        module.dispose();
+    });
 });

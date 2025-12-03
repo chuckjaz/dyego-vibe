@@ -199,7 +199,12 @@ export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtV
     visitLogicalExpr(expr: LogicalExpr): binaryen.ExpressionRef { throw new Error("Not implemented"); }
     visitSetExpr(expr: SetExpr): binaryen.ExpressionRef { throw new Error("Not implemented"); }
     visitUnaryExpr(expr: UnaryExpr): binaryen.ExpressionRef { throw new Error("Not implemented"); }
-    visitIfExpr(expr: IfExpr): binaryen.ExpressionRef { throw new Error("Not implemented"); }
+    visitIfExpr(expr: IfExpr): binaryen.ExpressionRef {
+        const condition = this.evaluate(expr.condition);
+        const thenBranch = this.evaluate(expr.thenBranch);
+        const elseBranch = expr.elseBranch ? this.evaluate(expr.elseBranch) : undefined;
+        return this.module.if(condition, thenBranch, elseBranch);
+    }
     visitWhenExpr(expr: WhenExpr): binaryen.ExpressionRef { throw new Error("Not implemented"); }
     visitLambdaExpr(expr: LambdaExpr): binaryen.ExpressionRef { throw new Error("Not implemented"); }
     visitArrayLiteralExpr(expr: ArrayLiteralExpr): binaryen.ExpressionRef { throw new Error("Not implemented"); }
