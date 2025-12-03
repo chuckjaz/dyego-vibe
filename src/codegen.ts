@@ -53,8 +53,7 @@ export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtV
             this.localIndex.set(param.name.lexeme, this.nextLocalIndex++);
         }
 
-        // TODO: Scan for locals in body
-        const vars: binaryen.Type[] = [];
+        const vars = this.scanLocals(stmt.body);
 
         if (stmt.isIntrinsic) {
             return 0 as binaryen.ExpressionRef; // Nothing to generate
@@ -65,6 +64,22 @@ export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtV
         this.module.addFunction(stmt.name.lexeme, params, result, vars, body);
         this.module.addFunctionExport(stmt.name.lexeme, stmt.name.lexeme);
         return 0 as binaryen.ExpressionRef;
+    }
+
+    private scanLocals(node: Stmt | Expr): binaryen.Type[] {
+        if (node instanceof VarStmt) {
+            this.localIndex.set(node.name.lexeme, this.nextLocalIndex++);
+            const typeNode = node.type || node.initializer.type;
+            return [typeNode ? this.resolveType(typeNode) : binaryen.i32];
+        } else if (node instanceof BlockExpr) {
+            return node.statements.flatMap(s => this.scanLocals(s));
+        } else if (node instanceof IfExpr) {
+            return [
+                ...this.scanLocals(node.thenBranch),
+                ...(node.elseBranch ? this.scanLocals(node.elseBranch) : [])
+            ];
+        }
+        return [];
     }
 
     visitBlockExpr(expr: BlockExpr): binaryen.ExpressionRef {
@@ -198,7 +213,38 @@ export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtV
     visitGroupingExpr(expr: GroupingExpr): binaryen.ExpressionRef { return this.evaluate(expr.expression); }
     visitLogicalExpr(expr: LogicalExpr): binaryen.ExpressionRef { throw new Error("Not implemented"); }
     visitSetExpr(expr: SetExpr): binaryen.ExpressionRef { throw new Error("Not implemented"); }
-    visitUnaryExpr(expr: UnaryExpr): binaryen.ExpressionRef { throw new Error("Not implemented"); }
+    visitUnaryExpr(expr: UnaryExpr): binaryen.ExpressionRef {
+        const right = this.evaluate(expr.right);
+        const type = expr.right.type ? this.resolveType(expr.right.type) : binaryen.i32; // Default to i32 if unknown, though checker should catch this.
+
+        switch (expr.operator.type) {
+            case TokenType.MINUS:
+                if (type === binaryen.i32) {
+                    return this.module.i32.sub(this.module.i32.const(0), right);
+                } else if (type === binaryen.i64) {
+                    return this.module.i64.sub(this.module.i64.const(0, 0), right);
+                } else if (type === binaryen.f32) {
+                    return this.module.f32.neg(right);
+                } else if (type === binaryen.f64) {
+                    return this.module.f64.neg(right);
+                }
+                throw new Error("Unary minus not supported for this type");
+            case TokenType.PLUS:
+                // Unary plus is a no-op for numbers
+                if (type === binaryen.i32 || type === binaryen.i64 || type === binaryen.f32 || type === binaryen.f64) {
+                    return right;
+                }
+                throw new Error("Unary plus not supported for this type");
+            case TokenType.BANG:
+                if (type === binaryen.i32) {
+                    // Boolean is i32, so eqz works for logical not (0 -> 1, non-zero -> 0)
+                    return this.module.i32.eqz(right);
+                }
+                throw new Error("Unary bang only supported for boolean (i32)");
+            default:
+                throw new Error(`Unknown unary operator ${expr.operator.lexeme}`);
+        }
+    }
     visitIfExpr(expr: IfExpr): binaryen.ExpressionRef {
         const condition = this.evaluate(expr.condition);
         const thenBranch = this.evaluate(expr.thenBranch);
@@ -211,9 +257,26 @@ export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtV
     visitIndexGetExpr(expr: IndexGetExpr): binaryen.ExpressionRef { throw new Error("Not implemented"); }
     visitIndexSetExpr(expr: IndexSetExpr): binaryen.ExpressionRef { throw new Error("Not implemented"); }
     visitPropagateExpr(expr: PropagateExpr): binaryen.ExpressionRef { throw new Error("Not implemented"); }
-    visitCastExpr(expr: CastExpr): binaryen.ExpressionRef { throw new Error("Not implemented"); }
+    visitCastExpr(expr: CastExpr): binaryen.ExpressionRef {
+        const value = this.evaluate(expr.expression);
+        const targetType = this.resolveType(expr.targetType);
+        const sourceType = expr.expression.type ? this.resolveType(expr.expression.type) : binaryen.i32;
 
-    visitVarStmt(stmt: VarStmt): binaryen.ExpressionRef { throw new Error("Not implemented"); }
+        if (targetType === binaryen.f64 && sourceType === binaryen.i32) {
+            return this.module.f64.convert_s.i32(value);
+        }
+
+        throw new Error(`Unsupported cast from ${sourceType} to ${targetType}`);
+    }
+
+    visitVarStmt(stmt: VarStmt): binaryen.ExpressionRef {
+        const index = this.localIndex.get(stmt.name.lexeme);
+        if (index === undefined) {
+            throw new Error(`Local ${stmt.name.lexeme} not found in index`);
+        }
+        const init = this.evaluate(stmt.initializer);
+        return this.module.local.set(index, init);
+    }
     visitWhileStmt(stmt: WhileStmt): binaryen.ExpressionRef { throw new Error("Not implemented"); }
     visitForStmt(stmt: ForStmt): binaryen.ExpressionRef { throw new Error("Not implemented"); }
     visitBreakStmt(stmt: BreakStmt): binaryen.ExpressionRef { throw new Error("Not implemented"); }

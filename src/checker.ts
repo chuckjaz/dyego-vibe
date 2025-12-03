@@ -631,7 +631,13 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         }
         throw new CheckerError(expr.keyword, "Invalid use of 'this'.");
     }
-    visitUnaryExpr(expr: UnaryExpr): TypeNode { return this.evaluate(expr.right); }
+    visitUnaryExpr(expr: UnaryExpr): TypeNode {
+        const right = this.evaluate(expr.right);
+        if (expr.operator.type === TokenType.BANG) {
+            return this.getBooleanType();
+        }
+        return right;
+    }
 
     visitIntrinsicExpr(expr: IntrinsicExpr): TypeNode {
         // Basic type inference for intrinsics based on module name
