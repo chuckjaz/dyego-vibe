@@ -6,7 +6,7 @@ import {
     NamedType, UnionType, ArrayType, GenericType, IsCondition, IntrinsicExpr
 } from "./ast";
 import { Checker } from "./checker";
-import { TokenType } from "./token";
+import { TokenType, Token } from "./token";
 
 export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtVisitor<binaryen.ExpressionRef> {
     private module: binaryen.Module;
@@ -42,12 +42,26 @@ export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtV
         return stmt.accept(this);
     }
 
-    visitFunctionStmt(stmt: FunctionStmt): binaryen.ExpressionRef {
+    visitFunctionStmt(stmt: FunctionStmt, thisType?: binaryen.Type, className?: string): binaryen.ExpressionRef {
+        const functionName = className ? `${className}_${stmt.name.lexeme}` : stmt.name.lexeme;
         this.localIndex.clear();
         this.nextLocalIndex = 0;
 
-        const params = binaryen.createType(stmt.params.map(p => this.resolveType(p.type)));
+        const paramTypes = stmt.params.map(p => this.resolveType(p.type));
+        if (thisType !== undefined) {
+            paramTypes.unshift(thisType);
+        }
+
+        if (paramTypes.some(t => t === binaryen.none)) {
+            // Cannot generate function with 'none' parameter (e.g. Unit)
+            return 0 as binaryen.ExpressionRef;
+        }
+        const params = binaryen.createType(paramTypes);
         const result = stmt.returnType ? this.resolveType(stmt.returnType) : binaryen.none;
+
+        if (thisType !== undefined) {
+            this.localIndex.set("this", 0);
+        }
 
         for (const param of stmt.params) {
             this.localIndex.set(param.name.lexeme, this.nextLocalIndex++);
@@ -61,9 +75,22 @@ export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtV
 
         const body = this.evaluate(stmt.body);
 
-        this.module.addFunction(stmt.name.lexeme, params, result, vars, body);
-        this.module.addFunctionExport(stmt.name.lexeme, stmt.name.lexeme);
+        this.module.addFunction(functionName, params, result, vars, body);
+        this.module.addFunctionExport(functionName, functionName);
+
         return 0 as binaryen.ExpressionRef;
+    }
+
+    visitThisExpr(expr: ThisExpr): binaryen.ExpressionRef {
+        if (this.variableBindings.has("this")) {
+            return this.variableBindings.get("this")!;
+        }
+        const index = this.localIndex.get("this");
+        if (index === undefined) {
+            throw new Error("'this' not bound and not found in local index");
+        }
+        const type = expr.type ? this.resolveType(expr.type) : binaryen.i32;
+        return this.module.local.get(index, type);
     }
 
     private scanLocals(node: Stmt | Expr): binaryen.Type[] {
@@ -91,7 +118,7 @@ export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtV
     }
 
     visitReturnStmt(stmt: ReturnStmt): binaryen.ExpressionRef {
-        const value = stmt.value ? this.evaluate(stmt.value) : undefined;
+        const value = stmt.value ? this.evaluate(stmt.value) : 0; // 0 for void return?
         return this.module.return(value);
     }
 
@@ -121,10 +148,24 @@ export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtV
                             }
                             return this.evaluateWithBindings(intrinsic, argsMap);
                         } else {
-                            console.error("Return value is not IntrinsicExpr:", returnStmt.value);
+                            // If not intrinsic, call the function!
+                            // But we need to know the function name.
+                            // And we need to pass 'this' as first argument.
+                            // The function name is method.name.lexeme.
+                            // But is it exported? Yes, we export all functions.
+                            // So we can use call.
+                            const args = [left, right];
+                            // Wait, resolveType for return type?
+                            const returnType = method.returnType ? this.resolveType(method.returnType) : binaryen.none;
+                            const functionName = `${leftType.name.lexeme}_${method.name.lexeme}`;
+                            return this.module.call(functionName, args, returnType);
                         }
                     } else {
-                        console.error("Method body structure mismatch:", method.body);
+                        // Not simple intrinsic, call function
+                        const args = [left, right];
+                        const returnType = method.returnType ? this.resolveType(method.returnType) : binaryen.none;
+                        const functionName = `${leftType.name.lexeme}_${method.name.lexeme}`;
+                        return this.module.call(functionName, args, returnType);
                     }
                 } else {
                     console.error(`Method '${opName}' not found or not operator in ${leftType.name.lexeme}. Available:`, info.methods.map(m => m.name.lexeme).join(", "));
@@ -171,23 +212,32 @@ export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtV
         return this.module.local.get(index, type);
     }
 
-    visitThisExpr(expr: ThisExpr): binaryen.ExpressionRef {
-        if (this.variableBindings.has("this")) {
-            return this.variableBindings.get("this")!;
-        }
-        throw new Error("'this' not bound");
-    }
+
 
     visitLiteralExpr(expr: LiteralExpr): binaryen.ExpressionRef {
         if (typeof expr.value === 'number') {
+            if (expr.type) {
+                const type = this.resolveType(expr.type);
+                if (type === binaryen.i64) {
+                    const val = expr.value;
+                    // Pass low and high bits for i64.const
+                    return this.module.i64.const(val, val < 0 ? -1 : 0);
+                } else if (type === binaryen.f32) {
+                    return this.module.f32.const(expr.value);
+                } else if (type === binaryen.f64) {
+                    return this.module.f64.const(expr.value);
+                }
+            }
             // Check if float or int
             if (expr.tokenType === TokenType.FLOAT) {
                 return this.module.f64.const(expr.value);
             } else {
                 return this.module.i32.const(expr.value);
             }
+        } else if (typeof expr.value === 'boolean') {
+            return this.module.i32.const(expr.value ? 1 : 0);
         }
-        throw new Error("Unsupported literal");
+        throw new Error(`Unsupported literal: ${expr.value}`);
     }
 
     resolveType(type: TypeNode): binaryen.Type {
@@ -215,35 +265,33 @@ export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtV
     visitSetExpr(expr: SetExpr): binaryen.ExpressionRef { throw new Error("Not implemented"); }
     visitUnaryExpr(expr: UnaryExpr): binaryen.ExpressionRef {
         const right = this.evaluate(expr.right);
-        const type = expr.right.type ? this.resolveType(expr.right.type) : binaryen.i32; // Default to i32 if unknown, though checker should catch this.
+        const type = expr.right.type;
 
-        switch (expr.operator.type) {
-            case TokenType.MINUS:
-                if (type === binaryen.i32) {
-                    return this.module.i32.sub(this.module.i32.const(0), right);
-                } else if (type === binaryen.i64) {
-                    return this.module.i64.sub(this.module.i64.const(0, 0), right);
-                } else if (type === binaryen.f32) {
-                    return this.module.f32.neg(right);
-                } else if (type === binaryen.f64) {
-                    return this.module.f64.neg(right);
+        if (type instanceof NamedType) {
+            const info = this.checker.getGlobal(type.name.lexeme);
+            if (info instanceof ValueStmt) {
+                const opName = `prefix ${expr.operator.lexeme}`;
+                const method = info.methods.find(m => m.name.lexeme === opName && m.isOperator);
+                if (method) {
+                    // Try to inline intrinsic
+                    if (method.body instanceof BlockExpr && method.body.statements.length === 1 && method.body.statements[0] instanceof ReturnStmt) {
+                        const returnStmt = method.body.statements[0] as ReturnStmt;
+                        if (returnStmt.value instanceof IntrinsicExpr) {
+                            const intrinsic = returnStmt.value as IntrinsicExpr;
+                            const argsMap = new Map<string, binaryen.ExpressionRef>();
+                            argsMap.set("this", right);
+                            return this.evaluateWithBindings(intrinsic, argsMap);
+                        }
+                    }
+
+                    // Fallback to function call
+                    const functionName = `${info.name.lexeme}_${opName}`;
+                    return this.module.call(functionName, [right], this.resolveType(method.returnType || new NamedType(new Token(TokenType.IDENTIFIER, "Unit", null, 0, 0))));
                 }
-                throw new Error("Unary minus not supported for this type");
-            case TokenType.PLUS:
-                // Unary plus is a no-op for numbers
-                if (type === binaryen.i32 || type === binaryen.i64 || type === binaryen.f32 || type === binaryen.f64) {
-                    return right;
-                }
-                throw new Error("Unary plus not supported for this type");
-            case TokenType.BANG:
-                if (type === binaryen.i32) {
-                    // Boolean is i32, so eqz works for logical not (0 -> 1, non-zero -> 0)
-                    return this.module.i32.eqz(right);
-                }
-                throw new Error("Unary bang only supported for boolean (i32)");
-            default:
-                throw new Error(`Unknown unary operator ${expr.operator.lexeme}`);
+            }
         }
+
+        throw new Error(`Operator ${expr.operator.lexeme} not defined for type or not intrinsic.`);
     }
     visitIfExpr(expr: IfExpr): binaryen.ExpressionRef {
         const condition = this.evaluate(expr.condition);
@@ -265,6 +313,9 @@ export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtV
         if (targetType === binaryen.f64 && sourceType === binaryen.i32) {
             return this.module.f64.convert_s.i32(value);
         }
+        if (targetType === binaryen.i64 && sourceType === binaryen.i32) {
+            return this.module.i64.extend_s(value);
+        }
 
         throw new Error(`Unsupported cast from ${sourceType} to ${targetType}`);
     }
@@ -281,7 +332,13 @@ export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtV
     visitForStmt(stmt: ForStmt): binaryen.ExpressionRef { throw new Error("Not implemented"); }
     visitBreakStmt(stmt: BreakStmt): binaryen.ExpressionRef { throw new Error("Not implemented"); }
     visitContinueStmt(stmt: ContinueStmt): binaryen.ExpressionRef { throw new Error("Not implemented"); }
-    visitValueStmt(stmt: ValueStmt): binaryen.ExpressionRef { throw new Error("Not implemented"); }
+    visitValueStmt(stmt: ValueStmt): binaryen.ExpressionRef {
+        const thisType = this.resolveType(new NamedType(stmt.name));
+        for (const method of stmt.methods) {
+            this.visitFunctionStmt(method, thisType, stmt.name.lexeme);
+        }
+        return 0 as binaryen.ExpressionRef;
+    }
     visitUseStmt(stmt: UseStmt): binaryen.ExpressionRef { throw new Error("Not implemented"); }
     visitTraitStmt(stmt: TraitStmt): binaryen.ExpressionRef { throw new Error("Not implemented"); }
 }

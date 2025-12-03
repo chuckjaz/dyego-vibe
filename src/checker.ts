@@ -633,19 +633,57 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
     }
     visitUnaryExpr(expr: UnaryExpr): TypeNode {
         const right = this.evaluate(expr.right);
-        if (expr.operator.type === TokenType.BANG) {
-            return this.getBooleanType();
+
+        if (right instanceof NamedType) {
+            const info = this.environment.lookup(right.name.lexeme);
+            if (info instanceof ValueStmt) {
+                const operatorName = `prefix ${expr.operator.lexeme}`;
+                let method: FunctionStmt | undefined;
+
+                if (info === this.currentValue) {
+                    method = this.visibleMethods.get(operatorName);
+                } else {
+                    method = info.methods.find(m => m.name.lexeme === operatorName);
+                }
+
+                if (method) {
+                    if (method.params.length !== 0) {
+                        throw new CheckerError(expr.operator, `Operator '${operatorName}' must have no parameters.`);
+                    }
+                    return method.returnType || this.getUnitType();
+                }
+            }
         }
-        return right;
+
+        if (expr.operator.type === TokenType.BANG) {
+            // Fallback for boolean if not overloaded (though now Boolean has prefix !)
+            // But we should prefer the overload if present.
+            // If we moved Boolean ! to prefix !, then the lookup above should find it.
+            // But if right is not NamedType (e.g. expression), we might fail to find it?
+            // NamedType check above handles variables and literals (which return NamedType).
+            // What if right is a call returning Boolean? It returns NamedType("Boolean").
+            // So it should work.
+            // But wait, Boolean is defined in prefix.dy.
+            // So it should be found.
+            // However, if prefix.dy is NOT loaded (or failed), then we might want fallback?
+            // No, we should enforce it.
+        }
+
+        throw new CheckerError(expr.operator, `Operator '${expr.operator.lexeme}' is not defined for type '${this.typeToString(right)}'.`);
     }
 
     visitIntrinsicExpr(expr: IntrinsicExpr): TypeNode {
+        // Evaluate arguments to ensure they are typed
+        for (const arg of expr.args) {
+            this.evaluate(arg);
+        }
+
         // Basic type inference for intrinsics based on module name
         const module = expr.module.lexeme;
         const op = expr.op.lexeme;
 
         if (['i32', 'i64', 'f32', 'f64'].includes(module)) {
-            if (['eq', 'ne', 'lt_s', 'lt_u', 'le_s', 'le_u', 'gt_s', 'gt_u', 'ge_s', 'ge_u', 'lt', 'le', 'gt', 'ge'].includes(op)) {
+            if (['eq', 'ne', 'lt_s', 'lt_u', 'le_s', 'le_u', 'gt_s', 'gt_u', 'ge_s', 'ge_u', 'lt', 'le', 'gt', 'ge', 'eqz'].includes(op)) {
                 return this.getBooleanType();
             }
             return new NamedType(expr.module);
@@ -888,5 +926,8 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         throw new CheckerError(expr.bracket, `Type ${this.typeToString(objectType)} is not an array.`);
     }
     visitPropagateExpr(expr: PropagateExpr): TypeNode { return this.evaluate(expr.expression); }
-    visitCastExpr(expr: CastExpr): TypeNode { return expr.targetType; }
+    visitCastExpr(expr: CastExpr): TypeNode {
+        this.evaluate(expr.expression);
+        return expr.targetType;
+    }
 }

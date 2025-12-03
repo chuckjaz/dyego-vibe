@@ -8,7 +8,7 @@ value Boolean() {
     intrinsic type i32
     operator fun `==`(other: Boolean): Boolean = intrinsic i32.eq(this, other)
     operator fun `!=`(other: Boolean): Boolean = intrinsic i32.ne(this, other)
-    operator fun `!`(): Boolean = intrinsic
+    operator fun `prefix !`(): Boolean = intrinsic i32.eqz(this)
 }
 
 value String() {
@@ -25,6 +25,8 @@ value Null() {
 
 value i32() {
     intrinsic type i32
+    operator fun `prefix +`(): i32 = this
+    operator fun `prefix -`(): i32 = intrinsic i32.sub(0, this)
     operator fun `+`(other: i32): i32 = intrinsic i32.add(this, other)
     operator fun `-`(other: i32): i32 = intrinsic i32.sub(this, other)
     operator fun `*`(other: i32): i32 = intrinsic i32.mul(this, other)
@@ -39,13 +41,15 @@ value i32() {
     operator fun `==`(other: i32): Boolean = intrinsic i32.eq(this, other)
     operator fun `!=`(other: i32): Boolean = intrinsic i32.ne(this, other)
 
-    fun countLeadingZeros(): i32 = intrinsic
-    fun countTrailingZeros(): i32 = intrinsic
-    fun countNonZeroBits(): i32 = intrinsic
+    fun countLeadingZeros(): i32 = intrinsic i32.clz(this)
+    fun countTrailingZeros(): i32 = intrinsic i32.ctz(this)
+    fun countNonZeroBits(): i32 = intrinsic i32.popcnt(this)
 }
 
 value i64() {
     intrinsic type i64
+    operator fun `prefix +`(): i64 = this
+    operator fun `prefix -`(): i64 = intrinsic i64.sub(0 as i64, this)
     operator fun `+`(other: i64): i64 = intrinsic i64.add(this, other)
     operator fun `-`(other: i64): i64 = intrinsic i64.sub(this, other)
     operator fun `*`(other: i64): i64 = intrinsic i64.mul(this, other)
@@ -67,6 +71,8 @@ value i64() {
 
 value f32() {
     intrinsic type f32
+    operator fun `prefix +`(): f32 = intrinsic
+    operator fun `prefix -`(): f32 = intrinsic f32.neg(this)
     operator fun `+`(other: f32): f32 = intrinsic f32.add(this, other)
     operator fun `-`(other: f32): f32 = intrinsic f32.sub(this, other)
     operator fun `*`(other: f32): f32 = intrinsic f32.mul(this, other)
@@ -89,6 +95,8 @@ value f32() {
 
 value f64() {
     intrinsic type f64
+    operator fun `prefix +`(): f64 = intrinsic
+    operator fun `prefix -`(): f64 = intrinsic f64.neg(this)
     operator fun `+`(other: f64): f64 = intrinsic f64.add(this, other)
     operator fun `-`(other: f64): f64 = intrinsic f64.sub(this, other)
     operator fun `*`(other: f64): f64 = intrinsic f64.mul(this, other)
