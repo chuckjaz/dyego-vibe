@@ -147,6 +147,6 @@ fun pixel(ray: Ray, sphere: Sphere, tval: f64): String {
     val p1: Vector = ray.origin + ray.direction * tval;
     val color = diffusedShading(p1, sphere, light1);
     val intensity = color.intensity() / 3.0;
-    return lut[(intensity * (let.length() as f64)).floor()];
+    return lut[(intensity * (lut.length() as f64)).floor()];
 }
 

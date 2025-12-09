@@ -64,9 +64,9 @@ value i64() {
     operator fun `==`(other: i64): Boolean = intrinsic i64.eq(this, other)
     operator fun `!=`(other: i64): Boolean = intrinsic i64.ne(this, other)
 
-    fun countLeadingZeros(): i64 = intrinsic
-    fun countTrailingZeros(): i64 = intrinsic
-    fun countNonZeroBits(): i64 = intrinsic
+    fun countLeadingZeros(): i64 = intrinsic i64.clz(this)
+    fun countTrailingZeros(): i64 = intrinsic i64.ctz(this)
+    fun countNonZeroBits(): i64 = intrinsic i64.popcnt(this)
 }
 
 value f32() {
@@ -85,12 +85,12 @@ value f32() {
     operator fun `==`(other: f32): Boolean = intrinsic f32.eq(this, other)
     operator fun `!=`(other: f32): Boolean = intrinsic f32.ne(this, other)
 
-    fun abs(): f32 = intrinsic
-    fun ceil(): i32 = intrinsic
-    fun floor(): i32 = intrinsic
-    fun max(other: f32): f32 = intrinsic
-    fun min(other: f32): f32 = intrinsic
-    fun sqrt(): f32 = intrinsic
+    fun abs(): f32 = intrinsic f32.abs(this)
+    fun ceil(): f32 = intrinsic f32.ceil(this)
+    fun floor(): f32 = intrinsic f32.floor(this)
+    fun max(other: f32): f32 = if (this > other) this else other;
+    fun min(other: f32): f32 = if (this < other) this else other;
+    fun sqrt(): f32 = intrinsic f32.sqrt(this)
 }
 
 value f64() {
@@ -110,10 +110,10 @@ value f64() {
     operator fun `==`(other: f64): Boolean = intrinsic f64.eq(this, other)
     operator fun `!=`(other: f64): Boolean = intrinsic f64.ne(this, other)
 
-    fun abs(): f64 = intrinsic
-    fun ceil(): i32 = intrinsic
-    fun floor(): i32 = intrinsic
-    fun max(other: f64): f64 = intrinsic
-    fun min(other: f64): f64 = intrinsic
-    fun sqrt(): f64 = intrinsic
+    fun abs(): f64 = intrinsic f64.abs(this)
+    fun ceil(): f64 = intrinsic f64.ceil(this)
+    fun floor(): f64 = intrinsic f64.floor(this)
+    fun max(other: f64): f64 = if (this > other) this else other;
+    fun min(other: f64): f64 = if (this < other) this else other;
+    fun sqrt(): f64 = intrinsic f64.sqrt(this)
 }

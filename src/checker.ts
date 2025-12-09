@@ -121,8 +121,16 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
             }
 
             // Execute prefix statements to populate environment
-            for (const statement of statements) {
-                this.execute(statement);
+            try {
+                for (const statement of statements) {
+                    this.execute(statement);
+                }
+            } catch (error) {
+                if (error instanceof CheckerError) {
+                    this.errors.push(error);
+                } else {
+                    throw error;
+                }
             }
         } else {
             console.error(`Prefix file not found at ${prefixPath}`);

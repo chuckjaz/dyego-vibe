@@ -12,7 +12,9 @@
                 "<node_internals>/**"
             ],
             "program": "${workspaceFolder}/dist/index.js",
-            "args": ["${workspaceFolder}/examples/vector.dy"],
+            "args": [
+                "${workspaceFolder}/examples/ray_trace.dy"
+            ],
             "outFiles": [
                 "${workspaceFolder}/dist/**/*.js"
             ]
