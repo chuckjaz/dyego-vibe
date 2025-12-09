@@ -654,8 +654,6 @@ export class ArrayType extends TypeNode {
   }
 }
 
-
-
 export class GenericType extends TypeNode {
   // Used for when a type is just a generic parameter T?
   // Or use NamedType for that? NamedType seems sufficient if it refers to "T".
