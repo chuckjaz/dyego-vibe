@@ -1,4 +1,4 @@
-import { Token, TokenType } from "./token";
+import { Token, TokenType } from './token.js';
 import {
   Expr, AssignExpr, BinaryExpr, CallExpr, GetExpr, GroupingExpr, LiteralExpr,
   LogicalExpr, SetExpr, ThisExpr, UnaryExpr, VariableExpr, BlockExpr, IfExpr,
@@ -6,7 +6,7 @@ import {
   CastExpr, Stmt, ExpressionStmt, FunctionStmt, ReturnStmt, VarStmt, WhileStmt,
   ForStmt, BreakStmt, ContinueStmt, ValueStmt, UseStmt, TraitStmt, TypeNode, NamedType,
   UnionType, ArrayType, WhenEntry, IsCondition, IntrinsicExpr
-} from "./ast";
+} from './ast.js';
 
 export class ParserError extends Error {
   token: Token;

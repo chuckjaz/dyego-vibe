@@ -1,15 +1,15 @@
 
-import { Lexer } from '../src/lexer';
-import { Parser } from '../src/parser';
+import { Lexer } from '../src/lexer.js';
+import { Parser } from '../src/parser.js';
 import {
   VarStmt, LiteralExpr, BinaryExpr, FunctionStmt, ValueStmt,
   CallExpr, LambdaExpr, IfExpr, WhenExpr, BlockExpr, NamedType,
   VariableExpr, TraitStmt, ReturnStmt, ExpressionStmt
-} from '../src/ast';
+} from '../src/ast.js';
 
 describe('Parser', () => {
   const parse = (source: string) => {
-    const lexer = new Lexer(source);
+    const lexer = new Lexer(source, "test.dy");
     const tokens = lexer.scanTokens();
     const parser = new Parser(tokens);
     return parser.parse();
@@ -109,7 +109,7 @@ describe('Parser', () => {
   });
 
   test('reports errors for invalid syntax', () => {
-    const lexer = new Lexer('val p = Point(1.0f, 2.0f);');
+    const lexer = new Lexer('val p = Point(1.0f, 2.0f);', 'test.dy');
     const tokens = lexer.scanTokens();
     const parser = new Parser(tokens);
     parser.parse();

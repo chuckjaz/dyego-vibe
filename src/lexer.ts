@@ -1,4 +1,4 @@
-import { TokenType, Token } from "./token";
+import { TokenType, Token } from './token.js';
 
 export class Lexer {
   private readonly source: string;

@@ -7,7 +7,7 @@ import {
   BreakStmt, ContinueStmt, ValueStmt, UseStmt, TraitStmt,
   TypeNode, NamedType, UnionType, ArrayType, GenericType, IsCondition,
   IntrinsicExpr
-} from "./ast";
+} from './ast.js';
 
 export class AstPrinter implements ExprVisitor<string>, StmtVisitor<string>, TypeVisitor<string> {
   print(stmtOrExpr: Stmt | Expr | TypeNode): string {

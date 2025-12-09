@@ -1,4 +1,4 @@
-import { compileAndRun } from "./utils";
+import { compileAndRun } from './utils.js';
 
 describe("unary operator overloading", () => {
     it("supports prefix - on i32", async () => {

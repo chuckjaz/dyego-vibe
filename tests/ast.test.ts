@@ -1,9 +1,9 @@
-import { Token, TokenType } from "../src/token";
+import { Token, TokenType } from '../src/token.js';
 import {
     BinaryExpr, LiteralExpr, BlockExpr, VarStmt, FunctionStmt, ReturnStmt,
     IfExpr, NamedType, AssignExpr, VariableExpr
-} from "../src/ast";
-import { AstPrinter } from "../src/ast_printer";
+} from '../src/ast.js';
+import { AstPrinter } from '../src/ast_printer.js';
 
 describe("AST Construction and Printing", () => {
     test("should print a complex function AST", () => {
@@ -13,7 +13,7 @@ describe("AST Construction and Printing", () => {
         // }
 
         const token = (type: TokenType, lexeme: string, literal: any = null) =>
-            new Token(type, lexeme, literal, 1, 1);
+            new Token(type, lexeme, literal, 1, 1, "test.dy");
 
         const params = [
             { name: token(TokenType.IDENTIFIER, "a"), type: new NamedType(token(TokenType.IDENTIFIER, "i32")) },
@@ -60,7 +60,7 @@ describe("AST Construction and Printing", () => {
     test("should print if expression", () => {
         // if (x > 0) 1 else 0
         const token = (type: TokenType, lexeme: string, literal: any = null) =>
-            new Token(type, lexeme, literal, 1, 1);
+            new Token(type, lexeme, literal, 1, 1, "test.dy");
 
         const ifExpr = new IfExpr(
             new BinaryExpr(
@@ -79,7 +79,7 @@ describe("AST Construction and Printing", () => {
     test("should print assignment returns old value", () => {
         // a = 5
         const token = (type: TokenType, lexeme: string, literal: any = null) =>
-            new Token(type, lexeme, literal, 1, 1);
+            new Token(type, lexeme, literal, 1, 1, "test.dy");
 
         const assign = new AssignExpr(
             token(TokenType.IDENTIFIER, "a"),

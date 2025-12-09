@@ -1,7 +1,7 @@
 value Unit() {
     intrinsic type none
-    operator fun `==`(other: Unit): Boolean = intrinsic i32.const(1)
-    operator fun `!=`(other: Unit): Boolean = intrinsic i32.const(0)
+    operator fun `==`(other: Unit): Boolean = intrinsic i32.const(1) as Boolean
+    operator fun `!=`(other: Unit): Boolean = intrinsic i32.const(0) as Boolean
 }
 
 value Boolean() {
@@ -19,8 +19,8 @@ value String() {
 
 value Null() {
     intrinsic type i32
-    operator fun `==`(other: Null): Boolean = intrinsic i32.const(1)
-    operator fun `!=`(other: Null): Boolean = intrinsic i32.const(0)
+    operator fun `==`(other: Null): Boolean = intrinsic i32.const(1) as Boolean
+    operator fun `!=`(other: Null): Boolean = intrinsic i32.const(0) as Boolean
 }
 
 value i32() {

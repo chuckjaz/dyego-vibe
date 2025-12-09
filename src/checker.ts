@@ -3,12 +3,12 @@ import {
     LiteralExpr, VariableExpr, AssignExpr, BinaryExpr, CallExpr, GetExpr, GroupingExpr, LogicalExpr, SetExpr, ThisExpr, UnaryExpr, BlockExpr, IfExpr, WhenExpr, LambdaExpr, ArrayLiteralExpr, IndexGetExpr, IndexSetExpr, PropagateExpr, CastExpr,
     ExpressionStmt, FunctionStmt, ReturnStmt, VarStmt, WhileStmt, ForStmt, BreakStmt, ContinueStmt, ValueStmt, UseStmt, TraitStmt,
     NamedType, UnionType, ArrayType, GenericType, IsCondition, IntrinsicExpr
-} from "./ast";
-import { TokenType, Token } from "./token";
+} from './ast.js';
+import { TokenType, Token } from './token.js';
 import * as fs from 'fs';
 import * as path from 'path';
-import { Lexer } from './lexer';
-import { Parser } from './parser';
+import { Lexer } from './lexer.js';
+import { Parser } from './parser.js';
 
 export class CheckerError extends Error {
     token: Token;

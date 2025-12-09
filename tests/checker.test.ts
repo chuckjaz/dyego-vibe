@@ -1,12 +1,12 @@
-import { Checker, CheckerError } from '../src/checker';
-import { Parser } from '../src/parser';
-import { Lexer } from '../src/lexer';
+import { Checker, CheckerError } from '../src/checker.js';
+import { Parser } from '../src/parser.js';
+import { Lexer } from '../src/lexer.js';
 import * as fs from 'fs';
 import * as path from 'path';
-import { FunctionStmt, NamedType } from '../src/ast';
+import { FunctionStmt, NamedType } from '../src/ast.js';
 
 function check(source: string) {
-    const lexer = new Lexer(source);
+    const lexer = new Lexer(source, "test.dy");
     const tokens = lexer.scanTokens();
     const parser = new Parser(tokens);
     const statements = parser.parse();
@@ -439,7 +439,7 @@ describe('Type Checker', () => {
 describe('Extension Methods', () => {
     test('parses extension method', () => {
         // We need to access parser directly for this test as check() swallows AST
-        const lexer = new Lexer('fun i32.square(): i32 { return this * this; }');
+        const lexer = new Lexer('fun i32.square(): i32 { return this * this; }', "test.dy");
         const tokens = lexer.scanTokens();
         const parser = new Parser(tokens);
         const stmts = parser.parse();

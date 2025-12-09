@@ -1,7 +1,7 @@
-import { Lexer } from "../src/lexer";
-import { Parser } from "../src/parser";
-import { Checker } from "../src/checker";
-import { CodeGenerator } from "../src/codegen";
+import { Lexer } from '../src/lexer.js';
+import { Parser } from '../src/parser.js';
+import { Checker } from '../src/checker.js';
+import { CodeGenerator } from '../src/codegen.js';
 
 describe("Binaryen Smoke Test", () => {
     it("should compile and run a simple add function", async () => {

@@ -1,9 +1,9 @@
-import { Lexer } from '../src/lexer';
-import { Parser } from '../src/parser';
-import { Checker } from '../src/checker';
+import { Lexer } from '../src/lexer.js';
+import { Parser } from '../src/parser.js';
+import { Checker } from '../src/checker.js';
 
 function check(source: string) {
-    const lexer = new Lexer(source);
+    const lexer = new Lexer(source, "test.dy");
     const tokens = lexer.scanTokens();
     const parser = new Parser(tokens);
     const statements = parser.parse();

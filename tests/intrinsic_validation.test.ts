@@ -1,6 +1,6 @@
-import { Lexer } from "../src/lexer";
-import { Parser } from "../src/parser";
-import { Checker } from "../src/checker";
+import { Lexer } from '../src/lexer.js';
+import { Parser } from '../src/parser.js';
+import { Checker } from '../src/checker.js';
 
 describe("Intrinsic Type Validation", () => {
     it("should reject intrinsic type outside of prefix.dy", () => {
@@ -10,7 +10,7 @@ describe("Intrinsic Type Validation", () => {
             }
         `;
 
-        const lexer = new Lexer(code);
+        const lexer = new Lexer(code, "test.dy");
         const tokens = lexer.scanTokens();
         const parser = new Parser(tokens);
         const statements = parser.parse();

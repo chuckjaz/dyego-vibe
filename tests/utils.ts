@@ -1,8 +1,8 @@
 
-import { Checker } from "../src/checker";
-import { CodeGenerator } from "../src/codegen";
-import { Parser } from "../src/parser";
-import { Lexer } from "../src/lexer";
+import { Checker } from '../src/checker.js';
+import { CodeGenerator } from '../src/codegen.js';
+import { Parser } from '../src/parser.js';
+import { Lexer } from '../src/lexer.js';
 import binaryen from "binaryen";
 import fs from "fs";
 import path from "path";

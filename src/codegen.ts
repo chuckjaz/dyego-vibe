@@ -4,9 +4,9 @@ import {
     LiteralExpr, VariableExpr, AssignExpr, BinaryExpr, CallExpr, GetExpr, GroupingExpr, LogicalExpr, SetExpr, ThisExpr, UnaryExpr, BlockExpr, IfExpr, WhenExpr, LambdaExpr, ArrayLiteralExpr, IndexGetExpr, IndexSetExpr, PropagateExpr, CastExpr,
     ExpressionStmt, FunctionStmt, ReturnStmt, VarStmt, WhileStmt, ForStmt, BreakStmt, ContinueStmt, ValueStmt, UseStmt, TraitStmt,
     NamedType, UnionType, ArrayType, GenericType, IsCondition, IntrinsicExpr
-} from "./ast";
-import { Checker } from "./checker";
-import { TokenType, Token } from "./token";
+} from './ast.js';
+import { Checker } from './checker.js';
+import { TokenType, Token } from './token.js';
 
 export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtVisitor<binaryen.ExpressionRef> {
     private module: binaryen.Module;
@@ -309,6 +309,10 @@ export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtV
         const value = this.evaluate(expr.expression);
         const targetType = this.resolveType(expr.targetType);
         const sourceType = expr.expression.type ? this.resolveType(expr.expression.type) : binaryen.i32;
+
+        if (targetType === sourceType) {
+            return value;
+        }
 
         if (targetType === binaryen.f64 && sourceType === binaryen.i32) {
             return this.module.f64.convert_s.i32(value);

@@ -1,9 +1,9 @@
-import { Lexer } from "../src/lexer";
-import { TokenType, Token } from "../src/token";
+import { Lexer } from '../src/lexer.js';
+import { TokenType, Token } from '../src/token.js';
 
 describe("Lexer", () => {
   it("should tokenize empty string", () => {
-    const lexer = new Lexer("");
+    const lexer = new Lexer("", "test.dy");
     const tokens = lexer.scanTokens();
     expect(tokens).toHaveLength(1);
     expect(tokens[0].type).toBe(TokenType.EOF);
@@ -11,7 +11,7 @@ describe("Lexer", () => {
 
   it("should tokenize single characters", () => {
     const input = "(){}[],.-+;*";
-    const lexer = new Lexer(input);
+    const lexer = new Lexer(input, "test.dy");
     const tokens = lexer.scanTokens();
 
     const expectedTypes = [
@@ -29,7 +29,7 @@ describe("Lexer", () => {
 
   it("should tokenize operators", () => {
     const input = "! != = == < <= > >= -> ? ?: ?. | || &&";
-    const lexer = new Lexer(input);
+    const lexer = new Lexer(input, "test.dy");
     const tokens = lexer.scanTokens();
 
     const expectedTypes = [
@@ -48,7 +48,7 @@ describe("Lexer", () => {
 
   it("should tokenize keywords", () => {
     const input = "val var value fun if else when for while break continue as trait use return true false null this";
-    const lexer = new Lexer(input);
+    const lexer = new Lexer(input, "test.dy");
     const tokens = lexer.scanTokens();
 
     const expectedTypes = [
@@ -65,7 +65,7 @@ describe("Lexer", () => {
 
   it("should tokenize identifiers", () => {
     const input = "abc _name myVar123";
-    const lexer = new Lexer(input);
+    const lexer = new Lexer(input, "test.dy");
     const tokens = lexer.scanTokens();
 
     expect(tokens[0].type).toBe(TokenType.IDENTIFIER);
@@ -80,7 +80,7 @@ describe("Lexer", () => {
 
   it("should tokenize integers", () => {
     const input = "123 0 9999";
-    const lexer = new Lexer(input);
+    const lexer = new Lexer(input, "test.dy");
     const tokens = lexer.scanTokens();
 
     expect(tokens[0].type).toBe(TokenType.INTEGER);
@@ -95,7 +95,7 @@ describe("Lexer", () => {
 
   it("should tokenize floats", () => {
     const input = "123.45 0.0 10.5";
-    const lexer = new Lexer(input);
+    const lexer = new Lexer(input, "test.dy");
     const tokens = lexer.scanTokens();
 
     expect(tokens[0].type).toBe(TokenType.FLOAT);
@@ -110,7 +110,7 @@ describe("Lexer", () => {
 
   it("should tokenize strings", () => {
     const input = '"hello" "world"';
-    const lexer = new Lexer(input);
+    const lexer = new Lexer(input, "test.dy");
     const tokens = lexer.scanTokens();
 
     expect(tokens[0].type).toBe(TokenType.STRING);
@@ -128,7 +128,7 @@ describe("Lexer", () => {
          block comment */
       var y = 2
     `;
-    const lexer = new Lexer(input);
+    const lexer = new Lexer(input, "test.dy");
     const tokens = lexer.scanTokens();
 
     // val x = 1
@@ -149,7 +149,7 @@ describe("Lexer", () => {
         value Point(val x: i32, val y: i32) {}
         val p = Point(10, 20)
       `;
-      const lexer = new Lexer(input);
+      const lexer = new Lexer(input, "test.dy");
       const tokens = lexer.scanTokens();
 
       // value Point(val x: i32, val y: i32) {}
@@ -184,7 +184,7 @@ describe("Lexer", () => {
   it("should handle multiline strings with correct columns", () => {
     const input = `val s = "line1
 line2"`;
-    const lexer = new Lexer(input);
+    const lexer = new Lexer(input, "test.dy");
     const tokens = lexer.scanTokens();
 
     // val s = "..."
@@ -212,7 +212,7 @@ line2"`;
 
   it("should tokenize backtick quoted identifier same as normal identifier", () => {
     const input = "val `a` = 1";
-    const lexer = new Lexer(input);
+    const lexer = new Lexer(input, "test.dy");
     const tokens = lexer.scanTokens();
 
     expect(tokens[0].type).toBe(TokenType.VAL);
@@ -227,7 +227,7 @@ line2"`;
 
   it("should allow keywords as identifiers when quoted", () => {
     const input = "val `if` = 1";
-    const lexer = new Lexer(input);
+    const lexer = new Lexer(input, "test.dy");
     const tokens = lexer.scanTokens();
 
     expect(tokens[0].type).toBe(TokenType.VAL);
@@ -237,7 +237,7 @@ line2"`;
 
   it("should include whitespace in identifier", () => {
     const input = "val `foo bar` = 1";
-    const lexer = new Lexer(input);
+    const lexer = new Lexer(input, "test.dy");
     const tokens = lexer.scanTokens();
 
     expect(tokens[1].type).toBe(TokenType.IDENTIFIER);
@@ -246,7 +246,7 @@ line2"`;
 
   it("should allow any unicode char except line-end or backtick", () => {
      const input = "val `Start 🚀 End` = 1";
-     const lexer = new Lexer(input);
+     const lexer = new Lexer(input, "test.dy");
      const tokens = lexer.scanTokens();
 
      expect(tokens[1].type).toBe(TokenType.IDENTIFIER);
@@ -255,7 +255,7 @@ line2"`;
 
   it("should fail on newline in backtick identifier", () => {
       const input = "val `foo\nbar` = 1";
-      const lexer = new Lexer(input);
+      const lexer = new Lexer(input, "test.dy");
       expect(() => lexer.scanTokens()).toThrow();
   });
 });
