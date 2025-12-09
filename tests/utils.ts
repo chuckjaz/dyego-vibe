@@ -8,18 +8,18 @@ import fs from "fs";
 import path from "path";
 
 export async function compileAndRun(source: string): Promise<any> {
-    const lexer = new Lexer(source);
+    const lexer = new Lexer(source, "test.dy");
     const parser = new Parser(lexer.scanTokens());
     const file = parser.parse();
 
     // Load prefix.dy
     const prefixSource = fs.readFileSync(path.resolve("src/prefix.dy"), "utf-8");
-    const prefixLexer = new Lexer(prefixSource);
+    const prefixLexer = new Lexer(prefixSource, "src/prefix.dy");
     const prefixParser = new Parser(prefixLexer.scanTokens());
     const prefixFile = prefixParser.parse();
 
-    // Initialize checker with a dummy path to prevent auto-loading
-    const checker = new Checker("dummy-path-to-prevent-auto-load");
+    // Initialize checker with null to prevent auto-loading
+    const checker = new Checker(null);
 
     // Manually check prefix file with isLoadingPrefix = true
     (checker as any).isLoadingPrefix = true;

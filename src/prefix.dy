@@ -40,6 +40,7 @@ value i32() {
 
     operator fun `==`(other: i32): Boolean = intrinsic i32.eq(this, other)
     operator fun `!=`(other: i32): Boolean = intrinsic i32.ne(this, other)
+    operator fun `prefix !`(): Boolean = intrinsic i32.eqz(this)
 
     fun countLeadingZeros(): i32 = intrinsic i32.clz(this)
     fun countTrailingZeros(): i32 = intrinsic i32.ctz(this)
@@ -63,6 +64,7 @@ value i64() {
 
     operator fun `==`(other: i64): Boolean = intrinsic i64.eq(this, other)
     operator fun `!=`(other: i64): Boolean = intrinsic i64.ne(this, other)
+    operator fun `prefix !`(): Boolean = intrinsic i64.eqz(this)
 
     fun countLeadingZeros(): i64 = intrinsic i64.clz(this)
     fun countTrailingZeros(): i64 = intrinsic i64.ctz(this)
@@ -71,7 +73,7 @@ value i64() {
 
 value f32() {
     intrinsic type f32
-    operator fun `prefix +`(): f32 = intrinsic
+    operator fun `prefix +`(): f32 = this
     operator fun `prefix -`(): f32 = intrinsic f32.neg(this)
     operator fun `+`(other: f32): f32 = intrinsic f32.add(this, other)
     operator fun `-`(other: f32): f32 = intrinsic f32.sub(this, other)
@@ -95,7 +97,7 @@ value f32() {
 
 value f64() {
     intrinsic type f64
-    operator fun `prefix +`(): f64 = intrinsic
+    operator fun `prefix +`(): f64 = this
     operator fun `prefix -`(): f64 = intrinsic f64.neg(this)
     operator fun `+`(other: f64): f64 = intrinsic f64.add(this, other)
     operator fun `-`(other: f64): f64 = intrinsic f64.sub(this, other)

@@ -18,7 +18,7 @@ function main() {
     try {
         const content = fs.readFileSync(filename, 'utf-8');
 
-        const lexer = new Lexer(content);
+        const lexer = new Lexer(content, filename);
         const tokens = lexer.scanTokens();
 
         const parser = new Parser(tokens);
@@ -28,7 +28,7 @@ function main() {
         if (parserErrors.length > 0) {
             for (const error of parserErrors) {
                 // Error <filename>:<line>:<column>: <message>
-                console.error(`Error ${filename}:${error.token.line}:${error.token.column}: ${error.message}`);
+                console.error(`Error ${error.token.filename}:${error.token.line}:${error.token.column}: ${error.message}`);
             }
             process.exit(1);
         }
@@ -39,7 +39,7 @@ function main() {
         const errors = checker.getErrors();
         if (errors.length > 0) {
             for (const error of errors) {
-                console.error(`Error ${filename}:${error.token.line}:${error.token.column}: ${error.message}`);
+                console.error(`Error ${error.token.filename}:${error.token.line}:${error.token.column}: ${error.message}`);
             }
             process.exit(1);
         }

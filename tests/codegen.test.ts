@@ -59,7 +59,7 @@ describe("Binaryen Smoke Test", () => {
             fun add(a: i32, b: i32): i32 = a + b;
         `;
 
-        const lexer = new Lexer(code);
+        const lexer = new Lexer(code, "test.dy");
         const tokens = lexer.scanTokens();
         const parser = new Parser(tokens);
         const statements = parser.parse();
@@ -91,7 +91,7 @@ describe("Binaryen Smoke Test", () => {
             fun max(a: i32, b: i32): i32 = if (a > b) a else b;
         `;
 
-        const lexer = new Lexer(code);
+        const lexer = new Lexer(code, "test.dy");
         const tokens = lexer.scanTokens();
         const parser = new Parser(tokens);
         const statements = parser.parse();
@@ -143,15 +143,46 @@ describe("Binaryen Smoke Test", () => {
             }
         `;
 
-        const lexer = new Lexer(code);
+        const lexer = new Lexer(code, "test.dy");
         const tokens = lexer.scanTokens();
         const parser = new Parser(tokens);
         const statements = parser.parse();
 
-        const checker = new Checker();
+        const path = (await import("path")).default;
+        const fs = (await import("fs")).default;
+
+        const prefixPath = path.resolve("src/prefix.dy");
+        // Initialize checker with null to prevent auto-loading
+        const checker = new Checker(null);
+
+        // Load and check prefix first
+        const prefixSource = fs.readFileSync(prefixPath, "utf-8");
+        const prefixLexer = new Lexer(prefixSource, "src/prefix.dy");
+        const prefixParser = new Parser(prefixLexer.scanTokens());
+        const prefixStatements = prefixParser.parse();
+
+        // Hack to set isLoadingPrefix
+        (checker as any).isLoadingPrefix = true;
+        checker.check(prefixStatements);
+        (checker as any).isLoadingPrefix = false;
+
+        if (checker.getErrors().length > 0) {
+            throw new Error("Prefix check failed: " + checker.getErrors()[0].message);
+        }
+
+        // Check user statements
         checker.check(statements);
+        if (checker.getErrors().length > 0) {
+            throw new Error(checker.getErrors()[0].message);
+        }
 
         const generator = new CodeGenerator(module, checker);
+
+        // Generate prefix code
+        for (const stmt of prefixStatements) {
+            generator.generate(stmt);
+        }
+
         generator.generate(statements[0]);
 
         if (!module.validate()) {

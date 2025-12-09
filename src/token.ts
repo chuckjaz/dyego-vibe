@@ -41,16 +41,18 @@ export class Token {
   literal: any;
   line: number;
   column: number;
+  filename: string;
 
-  constructor(type: TokenType, lexeme: string, literal: any, line: number, column: number) {
+  constructor(type: TokenType, lexeme: string, literal: any, line: number, column: number, filename: string) {
     this.type = type;
     this.lexeme = lexeme;
     this.literal = literal;
     this.line = line;
     this.column = column;
+    this.filename = filename;
   }
 
   toString(): string {
-    return `${this.type} ${this.lexeme} ${this.literal}`;
+    return `${this.type} ${this.lexeme} ${this.literal} (${this.filename}:${this.line}:${this.column})`;
   }
 }

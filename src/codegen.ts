@@ -286,7 +286,7 @@ export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtV
 
                     // Fallback to function call
                     const functionName = `${info.name.lexeme}_${opName}`;
-                    return this.module.call(functionName, [right], this.resolveType(method.returnType || new NamedType(new Token(TokenType.IDENTIFIER, "Unit", null, 0, 0))));
+                    return this.module.call(functionName, [right], this.resolveType(method.returnType || new NamedType(new Token(TokenType.IDENTIFIER, "Unit", null, 0, 0, "<internal>"))));
                 }
             }
         }

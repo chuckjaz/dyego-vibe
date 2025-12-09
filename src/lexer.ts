@@ -2,6 +2,7 @@ import { TokenType, Token } from "./token";
 
 export class Lexer {
   private readonly source: string;
+  private readonly filename: string;
   private readonly tokens: Token[] = [];
   private start = 0;
   private current = 0;
@@ -34,8 +35,9 @@ export class Lexer {
     intrinsic: TokenType.INTRINSIC,
   };
 
-  constructor(source: string) {
+  constructor(source: string, filename: string) {
     this.source = source;
+    this.filename = filename;
   }
 
   scanTokens(): Token[] {
@@ -45,7 +47,7 @@ export class Lexer {
       this.scanToken();
     }
 
-    this.tokens.push(new Token(TokenType.EOF, "", null, this.line, this.column));
+    this.tokens.push(new Token(TokenType.EOF, "", null, this.line, this.column, this.filename));
     return this.tokens;
   }
 
@@ -270,6 +272,6 @@ export class Lexer {
   private addToken(type: TokenType, literal: any = null, lexeme: string | null = null): void {
     const text = lexeme ?? this.source.substring(this.start, this.current);
     // Use the stored startColumn which was captured at the beginning of scanToken
-    this.tokens.push(new Token(type, text, literal, this.line, this.startColumn));
+    this.tokens.push(new Token(type, text, literal, this.line, this.startColumn, this.filename));
   }
 }

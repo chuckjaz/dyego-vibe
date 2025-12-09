@@ -89,12 +89,19 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
     private visibleMethods: Map<string, FunctionStmt> = new Map();
     private isLoadingPrefix: boolean = false;
 
-    constructor(prefixPath?: string) {
+    constructor(prefixPath?: string | null) {
         this.loadPrefix(prefixPath);
     }
 
-    private loadPrefix(customPath?: string) {
+    private loadPrefix(customPath?: string | null) {
         this.isLoadingPrefix = true;
+
+        // If explicit null, skip
+        if (customPath === null) {
+            this.isLoadingPrefix = false;
+            return;
+        }
+
         let prefixPath = customPath;
         if (!prefixPath) {
             if (typeof __dirname !== 'undefined') {
@@ -107,7 +114,7 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         }
         if (fs.existsSync(prefixPath)) {
             const content = fs.readFileSync(prefixPath, 'utf-8');
-            const lexer = new Lexer(content);
+            const lexer = new Lexer(content, prefixPath);
             const tokens = lexer.scanTokens();
             const parser = new Parser(tokens);
             const statements = parser.parse();
@@ -116,7 +123,7 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
             if (parserErrors.length > 0) {
                 console.error("Parser errors in prefix.dy:");
                 for (const error of parserErrors) {
-                    console.error(`${error.token.line}:${error.token.column}: ${error.message}`);
+                    console.error(`${error.token.filename}:${error.token.line}:${error.token.column}: ${error.message}`);
                 }
             }
 
@@ -242,11 +249,11 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
     }
 
     private getUnitType(line: number = 0): TypeNode {
-        return new NamedType(new Token(TokenType.IDENTIFIER, "Unit", null, line, 0));
+        return new NamedType(new Token(TokenType.IDENTIFIER, "Unit", null, line, 0, "<internal>"));
     }
 
     private getBooleanType(): TypeNode {
-        return new NamedType(new Token(TokenType.IDENTIFIER, "Boolean", null, 0, 0));
+        return new NamedType(new Token(TokenType.IDENTIFIER, "Boolean", null, 0, 0, "<internal>"));
     }
 
     private checkFunction(stmt: FunctionStmt, defineName: boolean): void {
@@ -406,27 +413,27 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
     visitLiteralExpr(expr: LiteralExpr): TypeNode {
         if (typeof expr.value === 'number') {
             if (expr.tokenType === TokenType.FLOAT) {
-                return new NamedType(new Token(TokenType.IDENTIFIER, "f64", null, 0, 0)); // Default float literal to f64 as per Issue #10
+                return new NamedType(new Token(TokenType.IDENTIFIER, "f64", null, 0, 0, "<internal>")); // Default float literal to f64 as per Issue #10
             }
             if (Number.isInteger(expr.value)) {
-                return new NamedType(new Token(TokenType.IDENTIFIER, "i32", null, 0, 0)); // Default integer type
+                return new NamedType(new Token(TokenType.IDENTIFIER, "i32", null, 0, 0, "<internal>")); // Default integer type
             } else {
-                return new NamedType(new Token(TokenType.IDENTIFIER, "f64", null, 0, 0)); // Default float type
+                return new NamedType(new Token(TokenType.IDENTIFIER, "f64", null, 0, 0, "<internal>")); // Default float type
             }
         } else if (typeof expr.value === 'string') {
-            return new NamedType(new Token(TokenType.IDENTIFIER, "String", null, 0, 0));
+            return new NamedType(new Token(TokenType.IDENTIFIER, "String", null, 0, 0, "<internal>"));
         } else if (typeof expr.value === 'boolean') {
-            return new NamedType(new Token(TokenType.IDENTIFIER, "Boolean", null, 0, 0));
+            return new NamedType(new Token(TokenType.IDENTIFIER, "Boolean", null, 0, 0, "<internal>"));
         } else if (expr.value === null) {
-            return new NamedType(new Token(TokenType.IDENTIFIER, "Null", null, 0, 0));
+            return new NamedType(new Token(TokenType.IDENTIFIER, "Null", null, 0, 0, "<internal>"));
         }
-        throw new CheckerError(new Token(TokenType.IDENTIFIER, "Unknown literal", null, 0, 0), "Unknown literal type.");
+        throw new CheckerError(new Token(TokenType.IDENTIFIER, "Unknown literal", null, 0, 0, "<internal>"), "Unknown literal type.");
     }
 
     visitVariableExpr(expr: VariableExpr): TypeNode {
         const info = this.environment.get(expr.name);
         if (info instanceof FunctionStmt) {
-            return new NamedType(new Token(TokenType.IDENTIFIER, "Function", null, expr.name.line, expr.name.column));
+            return new NamedType(new Token(TokenType.IDENTIFIER, "Function", null, expr.name.line, expr.name.column, expr.name.filename));
         }
         if (info instanceof ValueStmt) {
             return new NamedType(info.name);
@@ -605,7 +612,7 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
                 }
 
                 if (method) {
-                    return new NamedType(new Token(TokenType.IDENTIFIER, "Function", null, expr.name.line, expr.name.column));
+                    return new NamedType(new Token(TokenType.IDENTIFIER, "Function", null, expr.name.line, expr.name.column, expr.name.filename));
                 }
                 // Fall through to extension check
             }
@@ -613,7 +620,7 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
 
         const extension = this.lookupExtension(expr.name.lexeme, objectType);
         if (extension) {
-            return new NamedType(new Token(TokenType.IDENTIFIER, "Function", null, expr.name.line, expr.name.column));
+            return new NamedType(new Token(TokenType.IDENTIFIER, "Function", null, expr.name.line, expr.name.column, expr.name.filename));
         }
 
         if (objectType instanceof NamedType) {
@@ -702,14 +709,14 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
     visitIfExpr(expr: IfExpr): TypeNode {
         const conditionType = this.evaluate(expr.condition);
         // Use a dummy token for error reporting if condition is not simple
-        const errorToken = (expr.condition instanceof VariableExpr) ? expr.condition.name : new Token(TokenType.IF, "if", null, 0, 0);
+        const errorToken = (expr.condition instanceof VariableExpr) ? expr.condition.name : new Token(TokenType.IF, "if", null, 0, 0, "<internal>");
         this.checkType(this.getBooleanType(), conditionType, errorToken);
 
         const thenType = this.evaluate(expr.thenBranch);
         if (expr.elseBranch) {
             const elseType = this.evaluate(expr.elseBranch);
             if (!this.isTypeCompatible(thenType, elseType)) {
-                throw new CheckerError(new Token(TokenType.ELSE, "else", null, 0, 0), `If branches must return compatible types. Got ${this.typeToString(thenType)} and ${this.typeToString(elseType)}.`);
+                throw new CheckerError(new Token(TokenType.ELSE, "else", null, 0, 0, "<internal>"), `If branches must return compatible types. Got ${this.typeToString(thenType)} and ${this.typeToString(elseType)}.`);
             }
             return thenType;
         }
@@ -718,7 +725,7 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
 
     visitWhileStmt(stmt: WhileStmt): void {
         const conditionType = this.evaluate(stmt.condition);
-        this.checkType(this.getBooleanType(), conditionType, new Token(TokenType.WHILE, "while", null, 0, 0));
+        this.checkType(this.getBooleanType(), conditionType, new Token(TokenType.WHILE, "while", null, 0, 0, "<internal>"));
         this.evaluate(stmt.body);
     }
 
@@ -883,7 +890,7 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
             if (this.expectedType instanceof ArrayType) {
                 return this.expectedType;
             }
-            throw new CheckerError(new Token(TokenType.LEFT_BRACKET, "[", null, 0, 0), "Cannot infer type of empty array. Please provide an explicit type.");
+            throw new CheckerError(new Token(TokenType.LEFT_BRACKET, "[", null, 0, 0, "<internal>"), "Cannot infer type of empty array. Please provide an explicit type.");
         }
 
         const firstType = this.evaluate(expr.elements[0]);
@@ -891,7 +898,7 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         for (let i = 1; i < expr.elements.length; i++) {
             const elementType = this.evaluate(expr.elements[i]);
             if (!this.isTypeCompatible(firstType, elementType)) {
-                throw new CheckerError(new Token(TokenType.LEFT_BRACKET, "[", null, 0, 0), `Array elements must be of the same type. Expected ${this.typeToString(firstType)}, but got ${this.typeToString(elementType)}.`);
+                throw new CheckerError(new Token(TokenType.LEFT_BRACKET, "[", null, 0, 0, "<internal>"), `Array elements must be of the same type. Expected ${this.typeToString(firstType)}, but got ${this.typeToString(elementType)}.`);
             }
         }
 

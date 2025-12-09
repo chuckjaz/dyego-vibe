@@ -813,7 +813,7 @@ export class Parser {
         this.consume(TokenType.RIGHT_BRACKET, "Expect ']' after '[' for array type.");
         type = new ArrayType(type);
       } else if (this.match(TokenType.QUESTION)) {
-        const nullType = new NamedType(new Token(TokenType.IDENTIFIER, "Null", null, 0, 0));
+        const nullType = new NamedType(new Token(TokenType.IDENTIFIER, "Null", null, 0, 0, this.peek().filename));
         if (type instanceof UnionType) {
           type = new UnionType([...type.types, nullType]);
         } else {
