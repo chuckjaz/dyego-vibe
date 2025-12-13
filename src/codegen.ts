@@ -14,6 +14,7 @@ export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtV
     private localIndex: Map<string, number> = new Map();
     private nextLocalIndex: number = 0;
     private variableBindings: Map<string, binaryen.ExpressionRef> = new Map();
+    private whenSubjectLocals: Map<WhenExpr, number> = new Map();
 
     constructor(module: binaryen.Module, checker: Checker) {
         this.module = module;
@@ -46,6 +47,7 @@ export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtV
         const functionName = className ? `${className}_${stmt.name.lexeme}` : stmt.name.lexeme;
         this.localIndex.clear();
         this.nextLocalIndex = 0;
+        this.whenSubjectLocals.clear();
 
         const paramTypes = stmt.params.map(p => this.resolveType(p.type));
         if (thisType !== undefined) {
@@ -97,7 +99,8 @@ export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtV
         if (node instanceof VarStmt) {
             this.localIndex.set(node.name.lexeme, this.nextLocalIndex++);
             const typeNode = node.type || node.initializer.type;
-            return [typeNode ? this.resolveType(typeNode) : binaryen.i32];
+            const myLocal = typeNode ? this.resolveType(typeNode) : binaryen.i32;
+            return [myLocal, ...this.scanLocals(node.initializer)];
         } else if (node instanceof BlockExpr) {
             return node.statements.flatMap(s => this.scanLocals(s));
         } else if (node instanceof IfExpr) {
@@ -105,6 +108,49 @@ export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtV
                 ...this.scanLocals(node.thenBranch),
                 ...(node.elseBranch ? this.scanLocals(node.elseBranch) : [])
             ];
+        } else if (node instanceof WhenExpr) {
+            const locals: binaryen.Type[] = [];
+            if (node.subject) {
+                const index = this.nextLocalIndex++;
+                this.whenSubjectLocals.set(node, index);
+                locals.push(node.subject.type ? this.resolveType(node.subject.type) : binaryen.i32);
+                locals.push(...this.scanLocals(node.subject));
+            }
+            for (const entry of node.entries) {
+                for (const cond of entry.conditions) {
+                    if (cond instanceof Expr) {
+                        locals.push(...this.scanLocals(cond));
+                    }
+                }
+                locals.push(...this.scanLocals(entry.body));
+            }
+            if (node.elseBranch) {
+                locals.push(...this.scanLocals(node.elseBranch));
+            }
+            return locals;
+        } else if (node instanceof ReturnStmt) {
+            return node.value ? this.scanLocals(node.value) : [];
+        } else if (node instanceof ExpressionStmt) {
+            return this.scanLocals(node.expression);
+        } else if (node instanceof VarStmt) {
+            // Recurse heavily: definition already handled?
+            // Wait, previous if block handled VarStmt definition.
+            // We need to merge them?
+            // No, the first `if` handled VarStmt.
+            // But strict `if ... else if` logic means the first one wins.
+            // I need to update the FIRST if block to also recurse.
+            return []; // Unreachable if first block matches
+        } else if (node instanceof BinaryExpr) {
+            return [...this.scanLocals(node.left), ...this.scanLocals(node.right)];
+        } else if (node instanceof CallExpr) {
+            return [
+                ...this.scanLocals(node.callee),
+                ...node.arguments.flatMap(arg => this.scanLocals(arg.value))
+            ];
+        } else if (node instanceof GroupingExpr) {
+            return this.scanLocals(node.expression);
+        } else if (node instanceof UnaryExpr) {
+            return this.scanLocals(node.right);
         }
         return [];
     }
@@ -299,7 +345,86 @@ export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtV
         const elseBranch = expr.elseBranch ? this.evaluate(expr.elseBranch) : undefined;
         return this.module.if(condition, thenBranch, elseBranch);
     }
-    visitWhenExpr(expr: WhenExpr): binaryen.ExpressionRef { throw new Error("Not implemented"); }
+    visitWhenExpr(expr: WhenExpr): binaryen.ExpressionRef {
+        let subjectIndex = -1;
+        let subjectSetup = this.module.nop();
+        let subjectType = binaryen.i32;
+
+        if (expr.subject) {
+            const index = this.whenSubjectLocals.get(expr);
+            if (index === undefined) {
+                throw new Error("WhenExpr subject local not allocated.");
+            }
+            subjectIndex = index;
+            subjectType = expr.subject.type ? this.resolveType(expr.subject.type) : binaryen.i32;
+            const subjectVal = this.evaluate(expr.subject);
+            subjectSetup = this.module.local.set(subjectIndex, subjectVal);
+        }
+
+        const buildChain = (index: number): binaryen.ExpressionRef => {
+            if (index >= expr.entries.length) {
+                return expr.elseBranch ? this.evaluate(expr.elseBranch) : this.module.unreachable();
+            }
+
+            const entry = expr.entries[index];
+            let conditionRef: binaryen.ExpressionRef | null = null; // using 0 as null-ish for ref? No, refs are numbers.
+
+            for (const cond of entry.conditions) {
+                let check: binaryen.ExpressionRef;
+                if (expr.subject) {
+                    if (cond instanceof Expr) {
+                        const subj = this.module.local.get(subjectIndex, subjectType);
+                        const val = this.evaluate(cond);
+                        if (subjectType === binaryen.i32) {
+                            check = this.module.i32.eq(subj, val);
+                        } else if (subjectType === binaryen.i64) {
+                            check = this.module.i64.eq(subj, val);
+                        } else if (subjectType === binaryen.f32) {
+                            check = this.module.f32.eq(subj, val);
+                        } else if (subjectType === binaryen.f64) {
+                            check = this.module.f64.eq(subj, val);
+                        } else {
+                            throw new Error(`Equality check not implemented for type ${subjectType}`);
+                        }
+                    } else {
+                        // IsCondition
+                        throw new Error("IsCondition not implemented yet");
+                    }
+                } else {
+                    if (cond instanceof Expr) {
+                        check = this.evaluate(cond);
+                    } else {
+                        throw new Error("IsCondition not allowed without subject");
+                    }
+                }
+
+                if (conditionRef === null) {
+                    conditionRef = check;
+                } else {
+                    conditionRef = this.module.i32.or(conditionRef, check);
+                }
+            }
+
+            if (conditionRef === null) {
+                // Fallback if no conditions in entry (grammar should prevent)
+                return buildChain(index + 1);
+            }
+
+            const thenBody = this.evaluate(entry.body);
+            const elseBody = buildChain(index + 1);
+
+            return this.module.if(conditionRef, thenBody, elseBody);
+        };
+
+        const body = buildChain(0);
+
+        if (expr.subject) {
+            const resultType = expr.type ? this.resolveType(expr.type) : binaryen.none;
+            return this.module.block(null, [subjectSetup, body], resultType);
+        } else {
+            return body;
+        }
+    }
     visitLambdaExpr(expr: LambdaExpr): binaryen.ExpressionRef { throw new Error("Not implemented"); }
     visitArrayLiteralExpr(expr: ArrayLiteralExpr): binaryen.ExpressionRef { throw new Error("Not implemented"); }
     visitIndexGetExpr(expr: IndexGetExpr): binaryen.ExpressionRef { throw new Error("Not implemented"); }

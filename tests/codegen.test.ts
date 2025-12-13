@@ -206,4 +206,94 @@ describe("Binaryen Smoke Test", () => {
         // We can't easily return multiple values, so let's trust the logic above covers basic paths.
         // But we want to verify -b is actually negative.
     });
+
+    it("should compile and run a simple when expression with subject", async () => {
+        const binaryen = (await import("binaryen")).default;
+        const module = new binaryen.Module();
+
+        const code = `
+            fun test(v: i32): i32 {
+                return when (v) {
+                    0 -> 2
+                    1 -> 5
+                    else -> 10
+                }
+            }
+        `;
+
+        const lexer = new Lexer(code, "test.dy");
+        const tokens = lexer.scanTokens();
+        const parser = new Parser(tokens);
+        const statements = parser.parse();
+
+        const checker = new Checker();
+        checker.check(statements);
+
+        if (checker.getErrors().length > 0) {
+            throw new Error(checker.getErrors()[0].message);
+        }
+
+        const generator = new CodeGenerator(module, checker);
+        generator.generate(statements[0]);
+
+        if (!module.validate()) {
+            throw new Error("Module validation failed");
+        }
+
+        const wasm = module.emitBinary();
+        const instance = new WebAssembly.Instance(new WebAssembly.Module(wasm as any), {});
+        const test = instance.exports.test as (v: number) => number;
+
+        expect(test(0)).toBe(2);
+        expect(test(1)).toBe(5);
+        expect(test(2)).toBe(10);
+        expect(test(-1)).toBe(10);
+
+        module.dispose();
+    });
+
+    it("should compile and run when expression with multiple conditions", async () => {
+        const binaryen = (await import("binaryen")).default;
+        const module = new binaryen.Module();
+
+        const code = `
+             fun test2(v: i32): i32 {
+                 return when (v) {
+                     0, 1 -> 2
+                     2 -> 5
+                     else -> 10
+                 }
+             }
+         `;
+
+        const lexer = new Lexer(code, "test.dy");
+        const tokens = lexer.scanTokens();
+        const parser = new Parser(tokens);
+        const statements = parser.parse();
+
+        const checker = new Checker();
+        checker.check(statements);
+
+        if (checker.getErrors().length > 0) {
+            throw new Error(checker.getErrors()[0].message);
+        }
+
+        const generator = new CodeGenerator(module, checker);
+        generator.generate(statements[0]);
+
+        if (!module.validate()) {
+            throw new Error("Module validation failed");
+        }
+
+        const wasm = module.emitBinary();
+        const instance = new WebAssembly.Instance(new WebAssembly.Module(wasm as any), {});
+        const test2 = instance.exports.test2 as (v: number) => number;
+
+        expect(test2(0)).toBe(2);
+        expect(test2(1)).toBe(2);
+        expect(test2(2)).toBe(5);
+        expect(test2(3)).toBe(10);
+
+        module.dispose();
+    });
 });
