@@ -97,9 +97,13 @@ function main() {
                 process.exit(1);
             }
 
-            const binary = module.emitBinary();
-            fs.writeFileSync(outputFilename!, binary);
-            // console.log(`Wrote ${outputFilename}`);
+            if (outputFilename!.endsWith('.wat') || outputFilename!.endsWith('.wast')) {
+                const text = module.emitText();
+                fs.writeFileSync(outputFilename!, text);
+            } else {
+                const binary = module.emitBinary();
+                fs.writeFileSync(outputFilename!, binary);
+            }
         } else {
             const printer = new AstPrinter();
 
