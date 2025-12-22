@@ -152,3 +152,231 @@ Here are the established syntax and semantic rules:
     List Imports: A `{}-`delimited list can be used to import multiple items from the same base path (e.g., `use my_lib.utils.{thing_one, thing_two}`).
 
      Trait Imports: Using the trait keyword in a path brings all trait implementations from that module into the current scope, making extension methods available (e.g., `use my_lib.extensions.trait`).
+
+## Implementation details
+
+### Binary representations
+
+#### Primitives
+
+Primitive types are represented as their corresponding WASM types:
+
+- `i8` -> `i32`
+- `i16` -> `i32`
+- `i32` -> `i32`
+- `i64` -> `i64`
+- `u8` -> `i32`
+- `u16` -> `i32`
+- `u32` -> `i32`
+- `u64` -> `i64`
+- `f32` -> `f32`
+- `f64` -> `f64`
+- `Boolean` -> `i32` (0 = false, 1 = true)
+- `Rune` -> `i32`
+
+##### Parameters
+
+Primitive parameters are passed by value using the corresponding WASM type.
+
+##### Local variables
+
+Primitive local variables are represented as the corresponding WASM type.
+
+##### Global, imported and exported variables
+
+Primitive global and external variables are represented as the corresponding WASM type.
+
+##### Return values
+
+Primitive return values are returned by value using the corresponding WASM type.
+
+##### Memory
+
+Primitive types stored linearly in the order of declaration. The compiler is free to add padding between fields to align fields for efficiency.
+
+The number of bytes allocated to a field is sufficient for storing the entire field value. For primitive types, they occupy,
+
+- `i8`  -> 1 byte
+- `i16` -> 2 bytes
+- `i32` -> 4 bytes
+- `i64` -> 8 bytes
+- `u8` -> 1 byte
+- `u16` -> 2 bytes
+- `u32` -> 4 bytes
+- `u64` -> 8 bytes
+- `f32` -> 4 bytes
+- `f64` -> 8 bytes
+- `Boolean` -> 1 byte
+- `Rune` -> 4 bytes (0 - 0x10FFFF)
+
+##### Reference
+
+Primitives in a reference type (that is a WASM/GC array or struct type) are represented as their corresponding WASM type.
+
+#### Reference type
+
+Reference types are WASM/GC allocated types and are garbage collected by the WASM GC.
+
+##### Parameters
+
+Reference types are represented as a WASM/GC type using the WASM/GC type specification. The details are described below for each type.
+
+##### Local variables
+
+Local variables of a reference type are represented as a WASM/GC type.
+
+##### Global, exported and imported variables
+
+Global, exported and imported variables of a reference type are represented as a WASM/GC type.
+
+##### Return values
+
+As with parameters and local variables, reference types as a WASM/GC type.
+
+##### Memory
+
+Reference types cannot be stored in a memory. They can only be stored in a local, global, or exported variable or in another reference type (or array reference type).
+
+##### Reference
+
+References in a reference type are represented as a WASM/GC type.
+
+#### Array types
+
+There are two different kinds of arrays, value arrays, and reference arrays.
+
+A value array is a fixed size linear sequence of values indexable by an `i32`. When an array is declared with a fixed size, such as `i32[16]`, it declares a fixed size array of 16 elements and indexable by a range of `0..<16`.  If a fixed size array is index out of bound the program will trap.
+
+When an array is declared with an unspecified length, such as `i32[]`, it is an array reference declared as a WASM/GC array type. It is indexable by an `i32`. If an reference array is indexed out of bound it will trap.
+
+All arrays have a `size` pseudo-field of type `i32` that returns the number of elements of the array. For fixed arrays, `size` is a compile-time constant that is the value from the type declaration (e.g. `10` in a type declaration `f32[10]`). For an array reference, it is the number of elements currently allocated to the reference.
+
+The elements of either array can be another of the same kind or of the other. For example, `i32[16][][32]` is a fixed size array of 16 reference arrays of a fixed 32 size `i32` arrays. For arrays of arrays of either kind, the syntax `a[i1][i2]` can be abbreviated `a[i1, i2]` with additional index until the element type is not an array type.
+
+##### Parameters
+
+When a fixed array is passed as parameter it is decomposed into individual parameters and is passed as an individual parameter. For example, if a function is declared as,
+
+```
+fun sum(vector: f32[3])
+```
+
+is transformed into,
+
+```
+fun sum(vector$0: f32, vector$1: f32, vector$2: f32)
+```
+
+and a call like,
+
+```
+sum(vector)
+```
+
+is transformed into,
+
+```
+sum(vector[0], vector[1], vector[2])
+```
+
+When a reference array is passed as a parameter it is declared as an array type from the WASM/GC specification. For example, the type `i32[]` is translated to `(array $i32$array (mut i32))`. The type of `vector` is declared as `$i32$array`.
+
+For fixed array types whose element type is also a fixed array, the process is, appending on the index to the the name, until the element type is not an array type. If it is then a value type, the process continues as explained below for value types. 
+
+The process of reducing a type to its constituent primitive or reference types is called flattening which will be referred to as flattening from this point forward.
+
+##### Local variables
+
+Local variables are flattened as described for parameters.
+
+##### Global, imported and exported variables
+
+Global, imported, and exported variables are flattened as described for parameters.
+
+##### Return values
+
+Return values are flattened and returned using the multi-value return feature of WASM.
+
+##### Memory
+
+Only fixed arrays whose element type can be flattened into a type that doesn't have any reference fields can be stored in a memory. When stored in a memory a fixed array elements have the same size as they would have when stored in memory. For example, an array `i8[7]` is stored in a memory as seven consecutive bytes.
+
+A fixed array that cannot be stored in a memory is converted to a reference as described below.
+
+##### Reference
+
+A reference array is represented as a WASM/GC array type.
+
+A fixed array stored in a reference converted to a reference array by first converting into a linearized array of the linear array element type. A fixed array is linearized by collapsing adjacent fixed array types into a linear array of N*M size, where N and M are the sizes of the arrays being linearized. If the linear element type is a fixed array the fixed array is then collapsed into the linear array to form another linear array. This process is repeated until the element is not a fixed array. The non-fixed array type is then the element type of the linearized array.
+ 
+#### Value types
+
+##### Parameters
+
+Value types are flattened to fields until each field is a primitive or a reference type. The flattened fields are then passed as individual parameters. For example, consider the value,
+
+```
+value Point(val x: f64, val y: f64)
+```
+
+passed as a parameter to `distance` declared as,
+
+```
+fun distance(value: Point): f64
+```
+
+this can be transformed into,
+
+```
+fun distance$1(value$x: f64, value$y: f64): f64
+```
+
+The call,
+
+```
+distance(center)
+```
+
+could then be transformed into,
+
+```
+distance(center.x, center.y)
+```
+
+The flattening continues until there are only primitives or references fields. For a type like,
+
+```
+value Rectangle(val topLeft: Point, val bottomRight: Point)
+```
+
+passed into a function like,
+
+```
+fun area(rectangle: Rectangle): f64
+```
+
+This is first converted to,
+
+```
+fun area(rectangle$topLeft: Point, rectangle$bottomRight: Point): f64
+```
+
+then to,
+
+```
+fun area(rectangle$topLeft$x: f64, rectangle$topLeft$y: f64, rectangle$bottomRight$x: f64, rectangle$bottomRight$y: f64): f64
+```
+
+If the type is a fixed array type then is flattened as described above for fixed array types.
+
+##### Local variables
+
+Local variables are stored as the variables for each field of the flattened value type as described for parameters above.
+
+##### Global, imported, and exported variables
+
+Global, imported, and exported variables are stored as variables for each field of the flattened value type as described for parameters above.
+
+##### Return values
+
+A value type is returned as a flattened type where each field type is part of a multi-value return.
