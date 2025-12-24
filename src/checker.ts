@@ -167,6 +167,12 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
         return this.environment.lookup(name);
     }
 
+    getGlobals(): IterableIterator<[string, TypeInfo]> {
+        // We only care about top-level globals, so we can just return the current environment's values
+        // assuming execution has finished and we are at top level.
+        return this.environment.values.entries();
+    }
+
     private execute(stmt: Stmt) {
         stmt.accept(this);
     }

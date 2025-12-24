@@ -119,3 +119,8 @@ value f64() {
     fun min(other: f64): f64 = if (this < other) this else other;
     fun sqrt(): f64 = intrinsic f64.sqrt(this)
 }
+
+
+fun print(message: String): Unit = intrinsic
+fun print_f64(v: f64): Unit = intrinsic
+

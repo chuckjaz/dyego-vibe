@@ -50,7 +50,13 @@ export async function compileAndRun(source: string): Promise<any> {
 
     const wasm = module.emitBinary();
     const compiled = new WebAssembly.Module(wasm as any);
-    const instance = new WebAssembly.Instance(compiled, {});
+    const imports = {
+        env: {
+            print: () => { },
+            print_f64: () => { }
+        }
+    };
+    const instance = new WebAssembly.Instance(compiled, imports);
 
     // @ts-ignore
     return instance.exports.main();

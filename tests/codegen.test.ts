@@ -75,7 +75,13 @@ describe("Binaryen Smoke Test", () => {
         }
 
         const wasm = module.emitBinary();
-        const instance = new WebAssembly.Instance(new WebAssembly.Module(wasm as any), {});
+        const imports = {
+            env: {
+                print: () => { },
+                print_f64: () => { }
+            }
+        };
+        const instance = new WebAssembly.Instance(new WebAssembly.Module(wasm as any), imports);
         const add = instance.exports.add as (a: number, b: number) => number;
 
         expect(add(10, 20)).toBe(30);
@@ -107,7 +113,13 @@ describe("Binaryen Smoke Test", () => {
         }
 
         const wasm = module.emitBinary();
-        const instance = new WebAssembly.Instance(new WebAssembly.Module(wasm as any), {});
+        const imports = {
+            env: {
+                print: () => { },
+                print_f64: () => { }
+            }
+        };
+        const instance = new WebAssembly.Instance(new WebAssembly.Module(wasm as any), imports);
         const max = instance.exports.max as (a: number, b: number) => number;
 
         expect(max(10, 20)).toBe(20);
@@ -190,7 +202,13 @@ describe("Binaryen Smoke Test", () => {
         }
 
         const wasm = module.emitBinary();
-        const instance = new WebAssembly.Instance(new WebAssembly.Module(wasm as any), {});
+        const imports = {
+            env: {
+                print: () => { },
+                print_f64: () => { }
+            }
+        };
+        const instance = new WebAssembly.Instance(new WebAssembly.Module(wasm as any), imports);
         const unary = instance.exports.unary as (a: number, b: number) => number;
 
         // a = 10 (not zero), returns negA = -10
@@ -241,7 +259,13 @@ describe("Binaryen Smoke Test", () => {
         }
 
         const wasm = module.emitBinary();
-        const instance = new WebAssembly.Instance(new WebAssembly.Module(wasm as any), {});
+        const imports = {
+            env: {
+                print: () => { },
+                print_f64: () => { }
+            }
+        };
+        const instance = new WebAssembly.Instance(new WebAssembly.Module(wasm as any), imports);
         const test = instance.exports.test as (v: number) => number;
 
         expect(test(0)).toBe(2);
@@ -286,7 +310,13 @@ describe("Binaryen Smoke Test", () => {
         }
 
         const wasm = module.emitBinary();
-        const instance = new WebAssembly.Instance(new WebAssembly.Module(wasm as any), {});
+        const imports = {
+            env: {
+                print: () => { },
+                print_f64: () => { }
+            }
+        };
+        const instance = new WebAssembly.Instance(new WebAssembly.Module(wasm as any), imports);
         const test2 = instance.exports.test2 as (v: number) => number;
 
         expect(test2(0)).toBe(2);
