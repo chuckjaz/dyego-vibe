@@ -380,3 +380,39 @@ Global, imported, and exported variables are stored as variables for each field 
 ##### Return values
 
 A value type is returned as a flattened type where each field type is part of a multi-value return.
+
+### Derived types
+
+#### Slice
+
+A slice is a reference to subsection of a reference array. A slice uses the slice syntax where `a[..]` is the entire array and `a[10..]` is a slice of the element 10 to the end of the array. `a[1..100]` is a slice of index 1 to and including index 100. The slice `a[..<10]` is a slice from 0 to 9 (e.g. 0 to 10 exclusive).
+
+A slice is represented as a value type where declared like,
+
+```
+value Slice<T>(
+    val elements: T[],
+    val offset: i32,
+    val length: i32
+}
+```
+
+and has the binary representation described for value types above.
+
+#### Trait
+
+A trait is a description of a type that can be used as a constraint to a type parameter or as a first class type. When a trait is used as a type parameter the trait is erased when the type is reified with the bound type. If a trait is used as a first class type a trait value which is a built-in pseduo value type that looks like,
+
+```
+value TraitValue<T> {
+    val witness: PremethodTable,
+    val value: T 
+}
+```
+
+where the `PremethodTable` is a reference to a WASM function table that has an entry for each member of the trait. Each premethod must take a `this` parameter that can be assinged a value of `T`.  A trait as a first class tpe is similar to Rust's dynamic trait. Passing a witness table is similar to how Go implements interfaces.
+
+
+#### Generics
+
+A generic type is reified with its bound parameters by beta reduction of the type expression. Only concrete types (a type with no generic parameters) can have a binary representation.

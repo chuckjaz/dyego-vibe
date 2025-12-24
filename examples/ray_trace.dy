@@ -20,8 +20,8 @@ value Sphere(
 }
 
 value Ray(
-    origin: Vector,
-    direction: Vector
+    val origin: Vector,
+    val direction: Vector
 ) {
     fun intersectWith(sphere: Sphere): f64? {
         val l = sphere.center - origin;
