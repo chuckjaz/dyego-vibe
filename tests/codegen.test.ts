@@ -140,7 +140,7 @@ describe("Binaryen Smoke Test", () => {
                 val notZero = !a;
                 val negB = -b;
                 val plusB = +b;
-                
+
                 if (notZero) {
                     // a is 0
                     // negB should be -b, plusB should be b
@@ -323,6 +323,67 @@ describe("Binaryen Smoke Test", () => {
         expect(test2(1)).toBe(2);
         expect(test2(2)).toBe(5);
         expect(test2(3)).toBe(10);
+
+        expect(test2(3)).toBe(10);
+
+        module.dispose();
+    });
+
+    it("should compile and run nested value types", async () => {
+        const binaryen = (await import("binaryen")).default;
+        const module = new binaryen.Module();
+
+        const code = `
+            value Point(val x: f64, val y: f64) {}
+            value Rect(val tl: Point, val br: Point) {}
+
+            fun area(r: Rect): f64 {
+                val width = r.br.x - r.tl.x;
+                val height = r.br.y - r.tl.y;
+                return width * height;
+            }
+
+            fun main_test(): f64 {
+                val p1 = Point(0.0, 0.0);
+                val p2 = Point(10.0, 20.0);
+                val r = Rect(p1, p2);
+                return area(r);
+            }
+        `;
+
+        const lexer = new Lexer(code, "test.dy");
+        const tokens = lexer.scanTokens();
+        const parser = new Parser(tokens);
+        const statements = parser.parse();
+
+        const checker = new Checker();
+        checker.check(statements);
+
+        if (checker.getErrors().length > 0) {
+            throw new Error(checker.getErrors()[0].message);
+        }
+
+        const generator = new CodeGenerator(module, checker);
+        // Generate all statements (value types + funs)
+        for (const stmt of statements) {
+            generator.generate(stmt);
+        }
+
+        if (!module.validate()) {
+            throw new Error("Module validation failed");
+        }
+
+        const wasm = module.emitBinary();
+        const imports = {
+            env: {
+                print: () => { },
+                print_f64: () => { }
+            }
+        };
+        const instance = new WebAssembly.Instance(new WebAssembly.Module(wasm as any), imports);
+        const main_test = instance.exports.main_test as () => number;
+
+        expect(main_test()).toBe(200.0);
 
         module.dispose();
     });
