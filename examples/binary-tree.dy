@@ -1,0 +1,49 @@
+trait Comparable {
+    operator fun `==`(other: This): Boolean
+    operator fun `!=`(other: This): Boolean = !(this == other)
+}
+
+trait Ordered : Comparable {
+    operator fun `>`(other: This): Boolean
+    operator fun `>=`(other: This): Boolean = (this == other) || (this > other)
+    operator fun `<=(other: This): Boolean = !(this > other)
+    operator fun `<`(other: This): Boolean = !(this >= other)
+}
+
+value Tree<T : Ordered> {
+    value Node(
+        value: T,
+        var left: ref Node | null = null,
+        var right: ref Node | null = null,
+    ) {
+        var fun add(value: T) {
+            if (value != this.value) {
+                if (value < this.value) {
+                    left?.add(value) ?: { left = ref Node(value) }
+                } else {
+                    right?.add(value) ?: { right = ref Node(value) }
+                }
+            }
+        }
+
+        fun find(value: T): Boolean =
+            when {
+                value == this.value -> true
+                value < this.value -> left?.find(value) ?: false
+                else -> right?.find(value) ?: false
+            }
+    }
+
+    var root: Node | null = null
+
+    var fun add(value: T) {
+        if (root == null) {
+            root = ref Node(value)
+        } else {
+            root.add(value)
+        }
+    }
+
+    fun find(value: T): Boolean = root?.find(value) ?: false
+}
+

@@ -1,0 +1,25 @@
+export value Node(
+    val left: ref Node | Null = null
+    val right: ref Node | Null = null
+) {
+    fun count(): i32 =
+        1 + left?.count() ?: 0 + right?.count() ?: 0
+}
+
+export fun bottomUp(depth: i32): Node =
+    if (depth > 0) Node(ref bottomUp(depth - 1), ref bottomUp(depth - 1))
+    else Node()
+
+export fun itemCheck(node: Node) =
+    if (node.left == null) 1 else 1 + itemCheck(node.right)
+
+export fun work(iterations: i32, depth: i32): i32 {
+    var check = 0
+    var i = 0
+    while (i < iterations) {
+        val tree = bottomUp(depth)
+        check = check + tree.count()
+        i = i + 1
+    }
+    return check
+}

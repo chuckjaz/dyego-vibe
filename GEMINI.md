@@ -153,6 +153,119 @@ Here are the established syntax and semantic rules:
 
      Trait Imports: Using the trait keyword in a path brings all trait implementations from that module into the current scope, making extension methods available (e.g., `use my_lib.extensions.trait`).
 
+## Types
+
+### Values and references
+
+There are two kinds of types, `value` and `ref` (or reference).
+
+#### Value
+
+A `value` type is a type that is copied whenever it is assigned. All `value` types are considered a `unique` in a slot (where a slot in `val` or `var` parameter, local, global, memory). A values is `unique` in a `field` or array `element` iff the value or reference it is in is unique.
+
+A clone of a `value` is the `value` since values are always copied.
+
+### `ref`
+
+A `ref` is a reference to a heap allocated, garbage collected, value type. The reference itself is a value type and follows the rules of a value type. `ref` types have two sub-kinds, `unique` and `shared`.
+
+#### `shared`
+
+A `shared` `ref` is deeply immutable and can be freely moved in an out of locations at will. Values referenced directly, or indirectly, through a `shared` `ref` cannot be modified. The compiler needs no special handling of `shared` `ref` types instances as they are garbage collected through WASM/GC.
+
+A clone of a `shared` `ref` is the a no-op since the value is deeply immutable.
+
+#### `unique`
+
+A `unique` `ref` is a unique reference to a value.
+
+When a new `ref` is created it is considered a `unique` `ref`.
+
+When a `unique` `ref` is stored in a `var` location, the expression is considered destroyed.
+
+When a `unique` `ref` is stored in a `val` location is converted to a `shared` `ref` and all transitive references are also considered a `shared` `ref`.
+
+When a `unique` `ref` is read from a location, the location is considered destroyed (in a linear logic sense) and can no longer be read. The location can be written to but not read.
+
+Only a `var` location can store a `unique` `ref`. A `var` can also store a `shared` `ref` but it must be converted to a `unique` `ref` first (by cloning) before it is modified.
+
+When a `unique` `ref` is passed in as an argument (actual parameter), the expression is considered destroyed.
+
+Function parameters that are declared as `var` `ref` must receive a `unique` `ref` argument. In other words, if a `shared` `ref` is passed as a `var` `ref` argument, it must be cloned first.
+
+A clone of a `unique` `ref` is a reference to a clone of the fields or elements of value referenced.
+
+##### Operations on `unique` `ref`
+
+For `unique` `ref`, the member access operator, `.`, when applied to a location will read the location, which destroys the location, access the field, then it writes the reference back. This can also be thought of as a non-destructive read though it is more consistent to think of this as read/destroy/write sequence.
+
+A `var` method of a value receives the `this` parameter as a reference and then returns the value as part of return type of the method. For example,
+
+```
+ref value Node(
+    var description: String
+    var Left: Node | Null = null
+    var Right: Node | Null = null
+) {
+    var fun changeDescription(newDescription: String) {
+        description = newDescription
+    }
+}
+```
+
+The `changeDescription` method is desugared into a function that looks like,
+
+```
+fun Node$changeDescription(var this: Node, newDescription: String): Node {
+    this.description = newDescription
+    return this
+}
+```
+
+Given the following block of code,
+
+```
+var a = Node("Root")
+a.changeDescription("A")
+```
+
+the call `a.changeDescription("A")` is can be thought of as being,
+
+```
+a = `Node$changeDescription`(a, "Bob")
+```
+
+### Type literals
+
+Identifiers refer to the type in scope. All types declared in `prefix.dy` are considered implicitly in scope in all Dyego files. There are no predefined named types outside those defined in `prefix.dy`.
+
+### Type expressions
+
+#### Array types
+
+##### Fixed-array
+
+A fixed array is declared by using a postfix type operator `[ <i32-const> ]`. `<i32-const>` is a compile-time constant `i32` expression. This declares a fixed sized array which has the number of elements equal to value of the `<i32-const>` expression.  A fixed size array is a value type.
+
+### Literal expressions
+
+Literal constants have the following types,
+
+- `56i8` -> `i8`
+- `122i16` -> `i16`
+- `233i32` or `233` -> `i32`
+- `332i64` -> `i64`
+- `56u8` -> `u8`
+- `122u16` -> `u16`
+- `233u32` -> `u32`
+- `322u64` -> `u64`
+- `2.0f` -> `f32`
+- `632.0d` or `632.0` -> `f64`
+- `true` or `false` -> `Boolean`
+- `'a'` -> `Rune`
+- `"abcd"` -> `String`
+
+
 ## Implementation details
 
 ### Binary representations
@@ -281,7 +394,7 @@ sum(vector[0], vector[1], vector[2])
 
 When a reference array is passed as a parameter it is declared as an array type from the WASM/GC specification. For example, the type `i32[]` is translated to `(array $i32$array (mut i32))`. The type of `vector` is declared as `$i32$array`.
 
-For fixed array types whose element type is also a fixed array, the process is, appending on the index to the the name, until the element type is not an array type. If it is then a value type, the process continues as explained below for value types. 
+For fixed array types whose element type is also a fixed array, the process is, appending on the index to the the name, until the element type is not an array type. If it is then a value type, the process continues as explained below for value types.
 
 The process of reducing a type to its constituent primitive or reference types is called flattening which will be referred to as flattening from this point forward.
 
@@ -308,7 +421,7 @@ A fixed array that cannot be stored in a memory is converted to a reference as d
 A reference array is represented as a WASM/GC array type.
 
 A fixed array stored in a reference converted to a reference array by first converting into a linearized array of the linear array element type. A fixed array is linearized by collapsing adjacent fixed array types into a linear array of N*M size, where N and M are the sizes of the arrays being linearized. If the linear element type is a fixed array the fixed array is then collapsed into the linear array to form another linear array. This process is repeated until the element is not a fixed array. The non-fixed array type is then the element type of the linearized array.
- 
+
 #### Value types
 
 ##### Parameters
@@ -406,7 +519,7 @@ A trait is a description of a type that can be used as a constraint to a type pa
 ```
 value TraitValue<T> {
     val witness: PremethodTable,
-    val value: T 
+    val value: T
 }
 ```
 
