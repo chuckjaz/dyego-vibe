@@ -4,7 +4,7 @@ import {
   LambdaExpr, ArrayLiteralExpr, IndexGetExpr, IndexSetExpr, PropagateExpr, CastExpr,
   Expr, Stmt, ExprVisitor, StmtVisitor, TypeVisitor,
   ExpressionStmt, FunctionStmt, ReturnStmt, VarStmt, WhileStmt, ForStmt,
-  BreakStmt, ContinueStmt, ValueStmt, UseStmt, TraitStmt,
+  BreakStmt, ContinueStmt, ValueStmt, UseStmt, TraitStmt, VocabularyStmt,
   TypeNode, NamedType, UnionType, ArrayType, GenericType, IsCondition,
   IntrinsicExpr
 } from './ast.js';
@@ -197,6 +197,11 @@ export class AstPrinter implements ExprVisitor<string>, StmtVisitor<string>, Typ
   visitTraitStmt(stmt: TraitStmt): string {
     const methods = stmt.methods.map(m => m.accept(this)).join(" ");
     return `(trait ${stmt.name.lexeme} (${methods}))`;
+  }
+
+  visitVocabularyStmt(stmt: VocabularyStmt): string {
+    const members = stmt.members.map(m => m.lexeme).join(" ");
+    return `(vocabulary (${members}))`;
   }
 
   // Types

@@ -29,10 +29,25 @@ export enum TokenType {
   AS = "AS", TRAIT = "TRAIT", USE = "USE", RETURN = "RETURN",
   TRUE = "TRUE", FALSE = "FALSE", NULL = "NULL", THIS = "THIS",
   OPERATOR = "OPERATOR", IS = "IS", INTRINSIC = "INTRINSIC",
+  VOCABULARY = "VOCABULARY",
 
   AND = "AND", OR = "OR", // && and ||
 
+  COLON_COLON = "COLON_COLON", // ::
+
   EOF = "EOF"
+}
+
+export class Symbol {
+  readonly name: string;
+
+  constructor(name: string) {
+    this.name = name;
+  }
+
+  toString(): string {
+    return this.name;
+  }
 }
 
 export class Token {

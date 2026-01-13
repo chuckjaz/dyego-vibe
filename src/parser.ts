@@ -4,7 +4,7 @@ import {
   LogicalExpr, SetExpr, ThisExpr, UnaryExpr, VariableExpr, BlockExpr, IfExpr,
   WhenExpr, LambdaExpr, ArrayLiteralExpr, IndexGetExpr, IndexSetExpr, PropagateExpr,
   CastExpr, Stmt, ExpressionStmt, FunctionStmt, ReturnStmt, VarStmt, WhileStmt,
-  ForStmt, BreakStmt, ContinueStmt, ValueStmt, UseStmt, TraitStmt, TypeNode, NamedType,
+  ForStmt, BreakStmt, ContinueStmt, ValueStmt, UseStmt, TraitStmt, VocabularyStmt, TypeNode, NamedType,
   UnionType, ArrayType, WhenEntry, IsCondition, IntrinsicExpr
 } from './ast.js';
 
@@ -43,6 +43,31 @@ export class Parser {
     return this.errors;
   }
 
+  private parseQualifiedIdentifier(message: string): Token {
+    if (!this.check(TokenType.IDENTIFIER)) {
+      throw this.error(this.peek(), message);
+    }
+
+    let token = this.advance();
+    if (!this.check(TokenType.COLON_COLON)) {
+      return token;
+    }
+
+    const parts: Token[] = [token];
+    let lexeme = token.lexeme;
+
+    while (this.match(TokenType.COLON_COLON)) {
+      const next = this.consume(TokenType.IDENTIFIER, "Expect identifier after '::'.");
+      parts.push(next);
+      lexeme += "::" + next.lexeme;
+    }
+
+    // Create synthetic token with identifying symbol parts in literal
+    // We assume the Lexer has already interned the symbols into the identifiers' literals
+    const symbols = parts.map(t => t.literal);
+    return new Token(TokenType.IDENTIFIER, lexeme, symbols, token.line, token.column, token.filename);
+  }
+
   private declaration(): Stmt | null {
     try {
       if (this.match(TokenType.FUN)) return this.functionDeclaration("function");
@@ -50,6 +75,7 @@ export class Parser {
       if (this.match(TokenType.VAL)) return this.valDeclaration();
       if (this.match(TokenType.VALUE)) return this.valueDeclaration();
       if (this.match(TokenType.USE)) return this.useDeclaration();
+      if (this.match(TokenType.VOCABULARY)) return this.vocabularyDeclaration();
       if (this.match(TokenType.TRAIT)) return this.traitDeclaration();
 
       return this.statement();
@@ -88,7 +114,7 @@ export class Parser {
 
     if (this.match(TokenType.DOT)) {
       extensionType = type;
-      name = this.consume(TokenType.IDENTIFIER, `Expect ${kind} name.`);
+      name = this.parseQualifiedIdentifier(`Expect ${kind} name.`);
     } else {
       if (type instanceof NamedType && type.generics.length === 0) {
         name = type.name;
@@ -197,7 +223,7 @@ export class Parser {
   }
 
   private valueDeclaration(): Stmt {
-    const name = this.consume(TokenType.IDENTIFIER, "Expect value type name.");
+    const name = this.parseQualifiedIdentifier("Expect value type name.");
     let generics: Token[] = [];
     if (this.match(TokenType.LESS)) {
       do {
@@ -291,6 +317,18 @@ export class Parser {
 
     this.consume(TokenType.SEMICOLON, "Expect ';' after use declaration.");
     return new UseStmt(path, items, isTrait);
+  }
+
+  private vocabularyDeclaration(): Stmt {
+    this.consume(TokenType.LEFT_BRACE, "Expect '{' after 'vocabulary'.");
+    const members: Token[] = [];
+    if (!this.check(TokenType.RIGHT_BRACE)) {
+      do {
+        members.push(this.consume(TokenType.IDENTIFIER, "Expect identifier in vocabulary."));
+      } while (this.match(TokenType.COMMA));
+    }
+    this.consume(TokenType.RIGHT_BRACE, "Expect '}' after vocabulary members.");
+    return new VocabularyStmt(members);
   }
 
   private traitDeclaration(): Stmt {
@@ -566,10 +604,10 @@ export class Parser {
       if (this.match(TokenType.LEFT_PAREN)) {
         expr = this.finishCall(expr);
       } else if (this.match(TokenType.DOT)) {
-        const name = this.consume(TokenType.IDENTIFIER, "Expect property name after '.'.");
+        const name = this.parseQualifiedIdentifier("Expect property name after '.'.");
         expr = new GetExpr(expr, name, false);
       } else if (this.match(TokenType.QUESTION_DOT)) {
-        const name = this.consume(TokenType.IDENTIFIER, "Expect property name after '?.'.");
+        const name = this.parseQualifiedIdentifier("Expect property name after '?.'.");
         expr = new GetExpr(expr, name, true);
       } else if (this.match(TokenType.LEFT_BRACKET)) {
         const bracket = this.previous();
@@ -629,8 +667,8 @@ export class Parser {
       return new LiteralExpr(token.literal, token.type);
     }
 
-    if (this.match(TokenType.IDENTIFIER)) {
-      return new VariableExpr(this.previous());
+    if (this.check(TokenType.IDENTIFIER)) {
+      return new VariableExpr(this.parseQualifiedIdentifier("Expect identifier."));
     }
 
     if (this.match(TokenType.LEFT_PAREN)) {
@@ -843,7 +881,7 @@ export class Parser {
       return type;
     }
 
-    const name = this.consume(TokenType.IDENTIFIER, "Expect type name.");
+    const name = this.parseQualifiedIdentifier("Expect type name.");
     const generics: TypeNode[] = [];
     if (this.match(TokenType.LESS)) {
       do {

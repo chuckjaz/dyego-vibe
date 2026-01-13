@@ -38,6 +38,7 @@ export interface StmtVisitor<R> {
   visitValueStmt(stmt: ValueStmt): R;
   visitUseStmt(stmt: UseStmt): R;
   visitTraitStmt(stmt: TraitStmt): R;
+  visitVocabularyStmt(stmt: VocabularyStmt): R;
 }
 
 export interface TypeVisitor<R> {
@@ -607,6 +608,19 @@ export class TraitStmt extends Stmt {
 
   accept<R>(visitor: StmtVisitor<R>): R {
     return visitor.visitTraitStmt(this);
+  }
+}
+
+export class VocabularyStmt extends Stmt {
+  members: Token[];
+
+  constructor(members: Token[]) {
+    super();
+    this.members = members;
+  }
+
+  accept<R>(visitor: StmtVisitor<R>): R {
+    return visitor.visitVocabularyStmt(this);
   }
 }
 

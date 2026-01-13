@@ -1,7 +1,7 @@
 import {
     Expr, Stmt, TypeNode, ExprVisitor, StmtVisitor,
     LiteralExpr, VariableExpr, AssignExpr, BinaryExpr, CallExpr, GetExpr, GroupingExpr, LogicalExpr, SetExpr, ThisExpr, UnaryExpr, BlockExpr, IfExpr, WhenExpr, LambdaExpr, ArrayLiteralExpr, IndexGetExpr, IndexSetExpr, PropagateExpr, CastExpr,
-    ExpressionStmt, FunctionStmt, ReturnStmt, VarStmt, WhileStmt, ForStmt, BreakStmt, ContinueStmt, ValueStmt, UseStmt, TraitStmt,
+    ExpressionStmt, FunctionStmt, ReturnStmt, VarStmt, WhileStmt, ForStmt, BreakStmt, ContinueStmt, ValueStmt, UseStmt, TraitStmt, VocabularyStmt,
     NamedType, UnionType, ArrayType, GenericType, IsCondition, IntrinsicExpr
 } from './ast.js';
 import { TokenType, Token } from './token.js';
@@ -780,6 +780,7 @@ export class Checker implements ExprVisitor<TypeNode>, StmtVisitor<void> {
 
     visitUseStmt(stmt: UseStmt): void { }
     visitTraitStmt(stmt: TraitStmt): void { }
+    visitVocabularyStmt(stmt: VocabularyStmt): void { }
 
     visitWhenExpr(expr: WhenExpr): TypeNode {
         let subjectType: TypeNode | null = null;

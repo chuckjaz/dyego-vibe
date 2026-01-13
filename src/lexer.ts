@@ -1,4 +1,4 @@
-import { TokenType, Token } from './token.js';
+import { TokenType, Token, Symbol } from './token.js';
 
 export class Lexer {
   private readonly source: string;
@@ -10,10 +10,22 @@ export class Lexer {
   private column = 1;
   private startColumn = 1;
 
+  private static readonly symbols: Map<string, Symbol> = new Map();
+
+  static intern(name: string): Symbol {
+    let symbol = Lexer.symbols.get(name);
+    if (!symbol) {
+      symbol = new Symbol(name);
+      Lexer.symbols.set(name, symbol);
+    }
+    return symbol;
+  }
+
   private static readonly keywords: Record<string, TokenType> = {
     val: TokenType.VAL,
     var: TokenType.VAR,
     value: TokenType.VALUE,
+    vocabulary: TokenType.VOCABULARY,
     fun: TokenType.FUN,
     if: TokenType.IF,
     else: TokenType.ELSE,
@@ -62,7 +74,13 @@ export class Lexer {
       case "]": this.addToken(TokenType.RIGHT_BRACKET); break;
       case ",": this.addToken(TokenType.COMMA); break;
       case ".": this.addToken(TokenType.DOT); break;
-      case ":": this.addToken(TokenType.COLON); break;
+      case ":":
+        if (this.match(":")) {
+          this.addToken(TokenType.COLON_COLON);
+        } else {
+          this.addToken(TokenType.COLON);
+        }
+        break;
       case ";": this.addToken(TokenType.SEMICOLON); break;
       case "|":
         if (this.match("|")) {
@@ -187,8 +205,12 @@ export class Lexer {
 
     const text = this.source.substring(this.start, this.current);
     let type = Lexer.keywords[text];
-    if (type === undefined) type = TokenType.IDENTIFIER;
-    this.addToken(type);
+    if (type === undefined) {
+      type = TokenType.IDENTIFIER;
+      this.addToken(type, Lexer.intern(text));
+    } else {
+      this.addToken(type);
+    }
   }
 
   private number(): void {

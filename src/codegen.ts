@@ -2,7 +2,7 @@ import binaryen from "binaryen";
 import {
     Expr, Stmt, TypeNode, ExprVisitor, StmtVisitor,
     LiteralExpr, VariableExpr, AssignExpr, BinaryExpr, CallExpr, GetExpr, GroupingExpr, LogicalExpr, SetExpr, ThisExpr, UnaryExpr, BlockExpr, IfExpr, WhenExpr, LambdaExpr, ArrayLiteralExpr, IndexGetExpr, IndexSetExpr, PropagateExpr, CastExpr,
-    ExpressionStmt, FunctionStmt, ReturnStmt, VarStmt, WhileStmt, ForStmt, BreakStmt, ContinueStmt, ValueStmt, UseStmt, TraitStmt,
+    ExpressionStmt, FunctionStmt, ReturnStmt, VarStmt, WhileStmt, ForStmt, BreakStmt, ContinueStmt, ValueStmt, UseStmt, TraitStmt, VocabularyStmt,
     NamedType, UnionType, ArrayType, GenericType, IsCondition, IntrinsicExpr
 } from './ast.js';
 import { Checker } from './checker.js';
@@ -692,6 +692,7 @@ export class CodeGenerator implements ExprVisitor<binaryen.ExpressionRef>, StmtV
     }
     visitUseStmt(stmt: UseStmt): binaryen.ExpressionRef { throw new Error("UseStmt Not implemented"); }
     visitTraitStmt(stmt: TraitStmt): binaryen.ExpressionRef { throw new Error("TraitStmt Not implemented"); }
+    visitVocabularyStmt(stmt: VocabularyStmt): binaryen.ExpressionRef { return 0 as binaryen.ExpressionRef; }
 
     // Sub-visitors not needed?
     visitLambdaExpr(expr: LambdaExpr): binaryen.ExpressionRef { throw new Error("LambdaExpr Not implemented"); }
