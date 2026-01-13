@@ -153,6 +153,56 @@ Here are the established syntax and semantic rules:
 
      Trait Imports: Using the trait keyword in a path brings all trait implementations from that module into the current scope, making extension methods available (e.g., `use my_lib.extensions.trait`).
 
+## Names
+
+All names are declared in either an explicit or implicit vocabulary. A name is either qualified, with the syntax `vocabulary-specification '::' IDENT`, or unqualified `IDENT`.  The syntax of a `vocabulary-specification` is `IDENT ['::' IDENT]*`. When an unqualified symbol is exported form a module it is implicitly in the module's vocabulary. When a method with an unqualified name is part of a `trait` or `value` declaration it is implicitly in the vocabulary of the `value` or `trait`. When looking up a name unqualified names match the same name from any vocabulary.
+
+An name can be declared in explicit vocabulary by declaring it in a `vocabulary` declaration. A `vocabulary` does not introduce semantics, it is just a way of declaring names that can be used by other declarations. A `vocabulary` declaration is a comma delimited list of names with the following syntax `vocabulary '{' IDENT [',' IDENT]* [',']}`.
+
+Vocabularies can be used by a `value` to implement traits with names that would otherwise collide. For example, the following traits both introduce a `rotate` method,
+
+```
+trait Cardinal {
+    // ...
+    fun rotate(amount: i32): This
+    // ...
+}
+
+trait Canvas {
+    fun rotate(amount: i32): This
+}
+```
+
+if, for some reason, a `value` needs to be both a `Cardinal` and a `Canvas`, without vocabularies, it cannot as it can only declare on method that has the signature `fun rotate(amount: i32): This`. With a vocabulary it can use an explicit vocabulary to disambiguate which trait is intended.
+
+```
+value CardinalCanvas : Cardinal, Canvas {
+    fun Cardinal::rotate(amount: i32): This = ...
+    fun Canvas::rotate(amount: i32): This = ...
+}
+```
+
+A call to rotate an a type of `CardinalCanvas`, calls to `rotate` must be use an explicit name. For example,
+
+```
+val cc: CardinalCanvas = ...
+val b = cc.rotate(23)
+```
+
+The expression `cc.rotate(23)` is ambiguous as it matches both versions of `rotate`. The expression `cc.Canvas::rotate(23)` will invoke the `Canvas::rotate` method.
+
+If, however, the variable is one of the two traits, the call is unambiguous.
+
+```
+val cc: CardinalCanvas = ...
+val c: Canvas = cc
+val b = c.rotate(23)
+```
+
+This unambiguously calls the `Canvas::rotate` method of the `CardinalCanvas`.
+
+The names of functions, function parameters, fields, and methods can use fully qualified names.
+
 ## Types
 
 ### Values and references
