@@ -1,3 +1,20 @@
+vocabulary Operator {
+    `==`,
+    `!=`,
+    `<`,
+    `<=`,
+    `>`,
+    `>=`,
+    `prefix !`,
+    `prefix +`,
+    `prefix -`,
+    `+`,
+    `-`,
+    `*`,
+    `/`,
+    `%`,
+}
+
 value Unit() {
     intrinsic type none
     operator fun `==`(other: Unit): Boolean = intrinsic i32.const(1) as Boolean
