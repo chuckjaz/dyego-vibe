@@ -70,15 +70,31 @@ export class Parser {
 
   private declaration(): Stmt | null {
     try {
-      if (this.match(TokenType.FUN)) return this.functionDeclaration("function");
-      if (this.match(TokenType.VAR)) return this.varDeclaration();
-      if (this.match(TokenType.VAL)) return this.valDeclaration();
-      if (this.match(TokenType.VALUE)) return this.valueDeclaration();
-      if (this.match(TokenType.USE)) return this.useDeclaration();
-      if (this.match(TokenType.VOCABULARY)) return this.vocabularyDeclaration();
-      if (this.match(TokenType.TRAIT)) return this.traitDeclaration();
-
-      return this.statement();
+      switch (this.peek().type) {
+        case TokenType.FUN:
+          this.advance();
+          return this.functionDeclaration("function");
+        case TokenType.VAR:
+          this.advance();
+          return this.varDeclaration();
+        case TokenType.VAL:
+          this.advance();
+          return this.valDeclaration();
+        case TokenType.VALUE:
+          this.advance();
+          return this.valueDeclaration();
+        case TokenType.USE:
+          this.advance();
+          return this.useDeclaration();
+        case TokenType.VOCABULARY:
+          this.advance();
+          return this.vocabularyDeclaration();
+        case TokenType.TRAIT:
+          this.advance();
+          return this.traitDeclaration();
+        default:
+          return this.statement();
+      }
     } catch (error: any) {
       if (error instanceof ParserError) {
         this.errors.push(error);
@@ -362,13 +378,25 @@ export class Parser {
   // --- Statements ---
 
   private statement(): Stmt {
-    if (this.match(TokenType.WHILE)) return this.whileStatement();
-    if (this.match(TokenType.FOR)) return this.forStatement();
-    if (this.match(TokenType.BREAK)) return this.breakStatement();
-    if (this.match(TokenType.CONTINUE)) return this.continueStatement();
-    if (this.match(TokenType.RETURN)) return this.returnStatement();
-
-    return this.expressionStatement();
+    switch (this.peek().type) {
+      case TokenType.WHILE:
+        this.advance();
+        return this.whileStatement();
+      case TokenType.FOR:
+        this.advance();
+        return this.forStatement();
+      case TokenType.BREAK:
+        this.advance();
+        return this.breakStatement();
+      case TokenType.CONTINUE:
+        this.advance();
+        return this.continueStatement();
+      case TokenType.RETURN:
+        this.advance();
+        return this.returnStatement();
+      default:
+        return this.expressionStatement();
+    }
   }
 
   private whileStatement(): Stmt {
@@ -517,7 +545,7 @@ export class Parser {
   private equality(): Expr {
     let expr = this.comparison();
 
-    while (this.match(TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL)) {
+    while (this.match(TokenType.BANG_EQUAL) || this.match(TokenType.EQUAL_EQUAL)) {
       const operator = this.previous();
       const right = this.comparison();
       expr = new BinaryExpr(expr, operator, right);
@@ -529,7 +557,7 @@ export class Parser {
   private comparison(): Expr {
     let expr = this.infix();
 
-    while (this.match(TokenType.GREATER, TokenType.GREATER_EQUAL, TokenType.LESS, TokenType.LESS_EQUAL)) {
+    while (this.match(TokenType.GREATER) || this.match(TokenType.GREATER_EQUAL) || this.match(TokenType.LESS) || this.match(TokenType.LESS_EQUAL)) {
       const operator = this.previous();
       const right = this.infix();
       expr = new BinaryExpr(expr, operator, right);
@@ -554,7 +582,7 @@ export class Parser {
   private term(): Expr {
     let expr = this.factor();
 
-    while (this.match(TokenType.MINUS, TokenType.PLUS)) {
+    while (this.match(TokenType.MINUS) || this.match(TokenType.PLUS)) {
       const operator = this.previous();
       const right = this.factor();
       expr = new BinaryExpr(expr, operator, right);
@@ -566,7 +594,7 @@ export class Parser {
   private factor(): Expr {
     let expr = this.unary();
 
-    while (this.match(TokenType.SLASH, TokenType.STAR, TokenType.PERCENT)) {
+    while (this.match(TokenType.SLASH) || this.match(TokenType.STAR) || this.match(TokenType.PERCENT)) {
       const operator = this.previous();
       const right = this.unary();
       expr = new BinaryExpr(expr, operator, right);
@@ -576,7 +604,7 @@ export class Parser {
   }
 
   private unary(): Expr {
-    if (this.match(TokenType.BANG, TokenType.MINUS, TokenType.PLUS)) {
+    if (this.match(TokenType.BANG) || this.match(TokenType.MINUS) || this.match(TokenType.PLUS)) {
       const operator = this.previous();
       const right = this.unary();
       return new UnaryExpr(operator, right);
@@ -601,33 +629,43 @@ export class Parser {
     let expr = this.primary();
 
     while (true) {
-      if (this.match(TokenType.LEFT_PAREN)) {
-        expr = this.finishCall(expr);
-      } else if (this.match(TokenType.DOT)) {
-        const name = this.parseQualifiedIdentifier("Expect property name after '.'.");
-        expr = new GetExpr(expr, name, false);
-      } else if (this.match(TokenType.QUESTION_DOT)) {
-        const name = this.parseQualifiedIdentifier("Expect property name after '?.'.");
-        expr = new GetExpr(expr, name, true);
-      } else if (this.match(TokenType.LEFT_BRACKET)) {
-        const bracket = this.previous();
-        const index = this.expression();
-        this.consume(TokenType.RIGHT_BRACKET, "Expect ']' after index.");
-        expr = new IndexGetExpr(expr, index, bracket);
-      } else if (this.match(TokenType.QUESTION)) {
-        const operator = this.previous();
-        expr = new PropagateExpr(expr, operator);
-      } else if (this.check(TokenType.LEFT_BRACE)) {
-        // Trailing lambda without parentheses: list.map { ... }
-        // Treated as a call with one argument (the lambda)
-        const lambda = this.lambda();
-        expr = new CallExpr(expr, this.previous(), [{ value: lambda }]);
-      } else {
-        break;
+      switch (this.peek().type) {
+        case TokenType.LEFT_PAREN:
+          this.advance();
+          expr = this.finishCall(expr);
+          break;
+        case TokenType.DOT:
+          this.advance();
+          const name = this.parseQualifiedIdentifier("Expect property name after '.'.");
+          expr = new GetExpr(expr, name, false);
+          break;
+        case TokenType.QUESTION_DOT:
+          this.advance();
+          const qName = this.parseQualifiedIdentifier("Expect property name after '?.'.");
+          expr = new GetExpr(expr, qName, true);
+          break;
+        case TokenType.LEFT_BRACKET:
+          this.advance();
+          const bracket = this.previous();
+          const index = this.expression();
+          this.consume(TokenType.RIGHT_BRACKET, "Expect ']' after index.");
+          expr = new IndexGetExpr(expr, index, bracket);
+          break;
+        case TokenType.QUESTION:
+          this.advance();
+          const operator = this.previous();
+          expr = new PropagateExpr(expr, operator);
+          break;
+        case TokenType.LEFT_BRACE:
+          // Trailing lambda without parentheses: list.map { ... }
+          // Treated as a call with one argument (the lambda)
+          const lambda = this.lambda();
+          expr = new CallExpr(expr, this.previous(), [{ value: lambda }]);
+          break;
+        default:
+          return expr;
       }
     }
-
-    return expr;
   }
 
   private finishCall(callee: Expr): Expr {
@@ -657,47 +695,49 @@ export class Parser {
   }
 
   private primary(): Expr {
-    if (this.match(TokenType.FALSE)) return new LiteralExpr(false);
-    if (this.match(TokenType.TRUE)) return new LiteralExpr(true);
-    if (this.match(TokenType.NULL)) return new LiteralExpr(null);
-    if (this.match(TokenType.THIS)) return new ThisExpr(this.previous());
-
-    if (this.match(TokenType.INTEGER, TokenType.FLOAT, TokenType.STRING)) {
-      const token = this.previous();
-      return new LiteralExpr(token.literal, token.type);
+    switch (this.peek().type) {
+      case TokenType.FALSE:
+        this.advance();
+        return new LiteralExpr(false);
+      case TokenType.TRUE:
+        this.advance();
+        return new LiteralExpr(true);
+      case TokenType.NULL:
+        this.advance();
+        return new LiteralExpr(null);
+      case TokenType.THIS:
+        this.advance();
+        return new ThisExpr(this.previous());
+      case TokenType.INTEGER:
+      case TokenType.FLOAT:
+      case TokenType.STRING:
+        this.advance();
+        const token = this.previous();
+        return new LiteralExpr(token.literal, token.type);
+      case TokenType.IDENTIFIER:
+        return new VariableExpr(this.parseQualifiedIdentifier("Expect identifier."));
+      case TokenType.LEFT_PAREN:
+        this.advance();
+        const expr = this.expression();
+        this.consume(TokenType.RIGHT_PAREN, "Expect ')' after expression.");
+        return new GroupingExpr(expr);
+      case TokenType.IF:
+        this.advance();
+        return this.ifExpression();
+      case TokenType.WHEN:
+        this.advance();
+        return this.whenExpression();
+      case TokenType.LEFT_BRACE:
+        return this.lambda();
+      case TokenType.LEFT_BRACKET:
+        this.advance();
+        return this.arrayLiteral();
+      case TokenType.INTRINSIC:
+        this.advance();
+        return this.intrinsicExpression();
+      default:
+        throw this.error(this.peek(), "Expect expression.");
     }
-
-    if (this.check(TokenType.IDENTIFIER)) {
-      return new VariableExpr(this.parseQualifiedIdentifier("Expect identifier."));
-    }
-
-    if (this.match(TokenType.LEFT_PAREN)) {
-      const expr = this.expression();
-      this.consume(TokenType.RIGHT_PAREN, "Expect ')' after expression.");
-      return new GroupingExpr(expr);
-    }
-
-    if (this.match(TokenType.IF)) {
-      return this.ifExpression();
-    }
-
-    if (this.match(TokenType.WHEN)) {
-      return this.whenExpression();
-    }
-
-    if (this.check(TokenType.LEFT_BRACE)) {
-      return this.lambda();
-    }
-
-    if (this.match(TokenType.LEFT_BRACKET)) {
-      return this.arrayLiteral();
-    }
-
-    if (this.match(TokenType.INTRINSIC)) {
-      return this.intrinsicExpression();
-    }
-
-    throw this.error(this.peek(), "Expect expression.");
   }
 
   private intrinsicExpression(): Expr {
@@ -749,7 +789,8 @@ export class Parser {
       if (this.match(TokenType.ELSE)) {
         this.consume(TokenType.ARROW, "Expect '->' after 'else'.");
         elseBranch = this.parseControlFlowBody();
-        this.match(TokenType.COMMA, TokenType.SEMICOLON);
+        this.match(TokenType.COMMA);
+        this.match(TokenType.SEMICOLON);
       } else {
         const conditions: (Expr | IsCondition)[] = [];
         do {
@@ -767,7 +808,8 @@ export class Parser {
         this.consume(TokenType.ARROW, "Expect '->' after conditions.");
         const body = this.parseControlFlowBody();
         entries.push(new WhenEntry(conditions, body));
-        this.match(TokenType.COMMA, TokenType.SEMICOLON);
+        this.match(TokenType.COMMA);
+        this.match(TokenType.SEMICOLON);
       }
     }
     this.consume(TokenType.RIGHT_BRACE, "Expect '}' after when body.");
@@ -895,12 +937,10 @@ export class Parser {
 
   // --- Helpers ---
 
-  private match(...types: TokenType[]): boolean {
-    for (const type of types) {
-      if (this.check(type)) {
-        this.advance();
-        return true;
-      }
+  private match(type: TokenType): boolean {
+    if (this.check(type)) {
+      this.advance();
+      return true;
     }
 
     return false;
