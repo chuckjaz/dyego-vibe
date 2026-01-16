@@ -44,12 +44,12 @@ export class Parser {
   }
 
   private parseQualifiedIdentifier(message: string): Token {
-    if (!this.check(TokenType.IDENTIFIER)) {
+    if (this.peek().type !== TokenType.IDENTIFIER) {
       throw this.error(this.peek(), message);
     }
 
     let token = this.advance();
-    if (!this.check(TokenType.COLON_COLON)) {
+    if (this.peek().type !== TokenType.COLON_COLON) {
       return token;
     }
 
@@ -141,7 +141,7 @@ export class Parser {
     this.consume(TokenType.LEFT_PAREN, `Expect '(' after ${kind} name.`);
     const parameters: { name: Token, type: TypeNode }[] = [];
 
-    if (!this.check(TokenType.RIGHT_PAREN)) {
+    if (this.peek().type !== TokenType.RIGHT_PAREN) {
       do {
         const paramName = this.consume(TokenType.IDENTIFIER, "Expect parameter name.");
         this.consume(TokenType.COLON, "Expect ':' after parameter name.");
@@ -164,7 +164,7 @@ export class Parser {
 
     if (this.match(TokenType.EQUAL)) {
       let isIntrinsicDecl = false;
-      if (this.check(TokenType.INTRINSIC)) {
+      if (this.peek().type === TokenType.INTRINSIC) {
         const next = this.peekNext();
         // If next is not identifier, it's definitely not an intrinsic expression (module name must be identifier)
         if (!next || next.type !== TokenType.IDENTIFIER) {
@@ -185,18 +185,18 @@ export class Parser {
       if (isIntrinsicDecl) {
         isIntrinsic = true;
         body = new BlockExpr([]);
-        if (this.check(TokenType.SEMICOLON)) {
+        if (this.peek().type === TokenType.SEMICOLON) {
           this.advance();
         }
       } else {
         const value = this.expression();
-        if (this.check(TokenType.SEMICOLON)) {
+        if (this.peek().type === TokenType.SEMICOLON) {
           this.advance();
         }
         body = new BlockExpr([new ReturnStmt(this.previous(), value)]);
       }
     } else {
-      if (!this.check(TokenType.LEFT_BRACE)) {
+      if (this.peek().type !== TokenType.LEFT_BRACE) {
         throw this.error(this.peek(), `Expect '{' before ${kind} body.`);
       }
       body = this.block();
@@ -205,7 +205,7 @@ export class Parser {
   }
 
   private varDeclaration(): Stmt {
-    if (this.check(TokenType.FUN)) {
+    if (this.peek().type === TokenType.FUN) {
       if (this.match(TokenType.FUN)) {
         this.error(this.previous(), "Mutating methods ('var fun') are only allowed inside 'value' types.");
       }
@@ -251,7 +251,7 @@ export class Parser {
     this.consume(TokenType.LEFT_PAREN, "Expect '(' after value type name.");
 
     const fields: { name: Token, type: TypeNode, isMutable: boolean }[] = [];
-    if (!this.check(TokenType.RIGHT_PAREN)) {
+    if (this.peek().type !== TokenType.RIGHT_PAREN) {
       do {
         let isMutable = false;
         if (this.match(TokenType.VAR)) {
@@ -276,7 +276,7 @@ export class Parser {
     const methods: FunctionStmt[] = [];
     let intrinsicType: Token | null = null;
 
-    while (!this.check(TokenType.RIGHT_BRACE) && !this.isAtEnd()) {
+    while (this.peek().type !== TokenType.RIGHT_BRACE && !this.isAtEnd()) {
       if (this.match(TokenType.FUN)) {
         methods.push(this.functionDeclaration("method", true, false));
       } else if (this.match(TokenType.VAR)) {
@@ -338,7 +338,7 @@ export class Parser {
   private vocabularyDeclaration(): Stmt {
     this.consume(TokenType.LEFT_BRACE, "Expect '{' after 'vocabulary'.");
     const members: Token[] = [];
-    if (!this.check(TokenType.RIGHT_BRACE)) {
+    if (this.peek().type !== TokenType.RIGHT_BRACE) {
       do {
         members.push(this.consume(TokenType.IDENTIFIER, "Expect identifier in vocabulary."));
       } while (this.match(TokenType.COMMA));
@@ -352,7 +352,7 @@ export class Parser {
     this.consume(TokenType.LEFT_BRACE, "Expect '{' before trait body.");
 
     const methods: FunctionStmt[] = [];
-    while (!this.check(TokenType.RIGHT_BRACE) && !this.isAtEnd()) {
+    while (this.peek().type !== TokenType.RIGHT_BRACE && !this.isAtEnd()) {
       // Traits usually contain method signatures or default implementations.
       // Assuming 'fun' keyword.
       if (this.match(TokenType.FUN)) {
@@ -430,7 +430,7 @@ export class Parser {
   private breakStatement(): Stmt {
     const keyword = this.previous();
     let label: Token | null = null;
-    if (this.check(TokenType.IDENTIFIER)) {
+    if (this.peek().type === TokenType.IDENTIFIER) {
       label = this.consume(TokenType.IDENTIFIER, "Expect label.");
     }
     this.consume(TokenType.SEMICOLON, "Expect ';' after 'break'.");
@@ -440,7 +440,7 @@ export class Parser {
   private continueStatement(): Stmt {
     const keyword = this.previous();
     let label: Token | null = null;
-    if (this.check(TokenType.IDENTIFIER)) {
+    if (this.peek().type === TokenType.IDENTIFIER) {
       label = this.consume(TokenType.IDENTIFIER, "Expect label.");
     }
     this.consume(TokenType.SEMICOLON, "Expect ';' after 'continue'.");
@@ -450,13 +450,13 @@ export class Parser {
   private returnStatement(): Stmt {
     const keyword = this.previous();
     let value: Expr | null = null;
-    if (!this.check(TokenType.SEMICOLON) && !this.check(TokenType.RIGHT_BRACE)) {
+    if (this.peek().type !== TokenType.SEMICOLON && this.peek().type !== TokenType.RIGHT_BRACE) {
       value = this.expression();
     }
     // Allow optional semicolon if block ends
-    if (this.check(TokenType.SEMICOLON)) {
+    if (this.peek().type === TokenType.SEMICOLON) {
       this.advance();
-    } else if (!this.check(TokenType.RIGHT_BRACE)) {
+    } else if (this.peek().type !== TokenType.RIGHT_BRACE) {
       this.consume(TokenType.SEMICOLON, "Expect ';' after return value.");
     }
     return new ReturnStmt(keyword, value);
@@ -466,10 +466,10 @@ export class Parser {
     const expr = this.expression();
 
     if (expr instanceof BlockExpr || expr instanceof IfExpr || expr instanceof WhenExpr) {
-      if (this.check(TokenType.SEMICOLON)) {
+      if (this.peek().type === TokenType.SEMICOLON) {
         this.advance();
       }
-    } else if (this.check(TokenType.RIGHT_BRACE)) {
+    } else if (this.peek().type === TokenType.RIGHT_BRACE) {
       // Allow omitting semicolon if it's the last statement in a block
     } else {
       this.consume(TokenType.SEMICOLON, "Expect ';' after expression.");
@@ -670,10 +670,10 @@ export class Parser {
 
   private finishCall(callee: Expr): Expr {
     const args: { name?: Token, value: Expr }[] = [];
-    if (!this.check(TokenType.RIGHT_PAREN)) {
+    if (this.peek().type !== TokenType.RIGHT_PAREN) {
       do {
         let name: Token | undefined;
-        if (this.check(TokenType.IDENTIFIER) && this.peekNext()?.type === TokenType.EQUAL) {
+        if (this.peek().type === TokenType.IDENTIFIER && this.peekNext()?.type === TokenType.EQUAL) {
           name = this.consume(TokenType.IDENTIFIER, "Expect parameter name.");
           this.consume(TokenType.EQUAL, "Expect '='.");
           const value = this.expression();
@@ -686,7 +686,7 @@ export class Parser {
 
     const paren = this.consume(TokenType.RIGHT_PAREN, "Expect ')' after arguments.");
 
-    if (this.check(TokenType.LEFT_BRACE)) {
+    if (this.peek().type === TokenType.LEFT_BRACE) {
       const lambdaExpr = this.lambda();
       args.push({ value: lambdaExpr });
     }
@@ -747,7 +747,7 @@ export class Parser {
     this.consume(TokenType.LEFT_PAREN, "Expect '(' after operation name.");
 
     const args: Expr[] = [];
-    if (!this.check(TokenType.RIGHT_PAREN)) {
+    if (this.peek().type !== TokenType.RIGHT_PAREN) {
       do {
         args.push(this.expression());
       } while (this.match(TokenType.COMMA));
@@ -775,7 +775,7 @@ export class Parser {
     const keyword = this.previous();
     let subject: Expr | null = null;
     if (this.match(TokenType.LEFT_PAREN)) {
-      if (!this.check(TokenType.RIGHT_PAREN)) {
+      if (this.peek().type !== TokenType.RIGHT_PAREN) {
         subject = this.expression();
       }
       this.consume(TokenType.RIGHT_PAREN, "Expect ')' after when subject.");
@@ -785,7 +785,7 @@ export class Parser {
     const entries: WhenEntry[] = [];
     let elseBranch: Expr | null = null;
 
-    while (!this.check(TokenType.RIGHT_BRACE) && !this.isAtEnd()) {
+    while (this.peek().type !== TokenType.RIGHT_BRACE && !this.isAtEnd()) {
       if (this.match(TokenType.ELSE)) {
         this.consume(TokenType.ARROW, "Expect '->' after 'else'.");
         elseBranch = this.parseControlFlowBody();
@@ -818,7 +818,7 @@ export class Parser {
   }
 
   private parseControlFlowBody(): Expr {
-    if (this.check(TokenType.LEFT_BRACE)) {
+    if (this.peek().type === TokenType.LEFT_BRACE) {
       return this.block();
     } else {
       return this.expression();
@@ -828,7 +828,7 @@ export class Parser {
   private block(): BlockExpr {
     this.consume(TokenType.LEFT_BRACE, "Expect '{' to start block.");
     const statements: Stmt[] = [];
-    while (!this.check(TokenType.RIGHT_BRACE) && !this.isAtEnd()) {
+    while (this.peek().type !== TokenType.RIGHT_BRACE && !this.isAtEnd()) {
       const decl = this.declaration();
       if (decl) statements.push(decl);
     }
@@ -842,7 +842,7 @@ export class Parser {
     let params: { name: Token, type: TypeNode | null }[] = [];
     let isParams = false;
 
-    if (this.check(TokenType.IDENTIFIER)) {
+    if (this.peek().type === TokenType.IDENTIFIER) {
       const next = this.peekNext();
       if (next && (next.type === TokenType.COLON || next.type === TokenType.COMMA || next.type === TokenType.ARROW)) {
         isParams = true;
@@ -862,7 +862,7 @@ export class Parser {
     }
 
     const statements: Stmt[] = [];
-    while (!this.check(TokenType.RIGHT_BRACE) && !this.isAtEnd()) {
+    while (this.peek().type !== TokenType.RIGHT_BRACE && !this.isAtEnd()) {
       const decl = this.declaration();
       if (decl) statements.push(decl);
     }
@@ -874,7 +874,7 @@ export class Parser {
   private arrayLiteral(): ArrayLiteralExpr {
     // The '[' was already consumed by primary()
     const elements: Expr[] = [];
-    if (!this.check(TokenType.RIGHT_BRACKET)) {
+    if (this.peek().type !== TokenType.RIGHT_BRACKET) {
       do {
         elements.push(this.expression());
       } while (this.match(TokenType.COMMA));
@@ -938,7 +938,7 @@ export class Parser {
   // --- Helpers ---
 
   private match(type: TokenType): boolean {
-    if (this.check(type)) {
+    if (this.peek().type === type) {
       this.advance();
       return true;
     }
@@ -947,14 +947,9 @@ export class Parser {
   }
 
   private consume(type: TokenType, message: string): Token {
-    if (this.check(type)) return this.advance();
+    if (this.peek().type === type) return this.advance();
 
     throw this.error(this.peek(), message);
-  }
-
-  private check(type: TokenType): boolean {
-    if (this.isAtEnd()) return false;
-    return this.peek().type === type;
   }
 
   private advance(): Token {
